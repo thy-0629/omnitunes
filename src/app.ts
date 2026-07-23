@@ -6,8 +6,10 @@ import sensible from '@fastify/sensible';
 import { config } from './config/env.js';
 import requestContextPlugin from './plugins/request-context.js';
 import dbPlugin from './plugins/db.js';
+import sourcesPlugin from './modules/sources/plugin.js';
 import { registerErrorHandler } from './utils/error-handler.js';
 import { healthRoutes } from './routes/health.js';
+import { sourceRoutes } from './routes/sources.js';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -36,12 +38,14 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(sensible);
   await app.register(requestContextPlugin);
   await app.register(dbPlugin);
+  await app.register(sourcesPlugin);
 
   // --- error handler ---
   registerErrorHandler(app);
 
   // --- routes ---
   await app.register(healthRoutes);
+  await app.register(sourceRoutes);
 
   return app;
 }
