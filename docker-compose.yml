@@ -1,0 +1,26 @@
+services:
+  omnitune-api:
+    build: .
+    image: omnitune-backend:latest
+    container_name: omnitune-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      LOG_LEVEL: info
+      AUTH_TOKEN: ${AUTH_TOKEN:?set AUTH_TOKEN in .env}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    volumes:
+      - omnitune-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  omnitune-data:
