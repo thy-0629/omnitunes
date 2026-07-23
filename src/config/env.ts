@@ -8,6 +8,14 @@ const ConfigSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   AUTH_TOKEN: z.string().min(8).default('change-me-in-production'),
   CORS_ORIGIN: z.string().default('*'),
+
+  // Data layer
+  DATABASE_URL: z
+    .string()
+    .default('file:./data/omnitune.sqlite')
+    .describe('SQLite file URL, e.g. file:./data/omnitune.sqlite'),
+  MEDIA_DIR: z.string().default('./data/media'),
+  CACHE_DIR: z.string().default('./data/cache'),
 });
 
 const parsed = ConfigSchema.safeParse(process.env);

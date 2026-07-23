@@ -5,6 +5,7 @@ import helmet from '@fastify/helmet';
 import sensible from '@fastify/sensible';
 import { config } from './config/env.js';
 import requestContextPlugin from './plugins/request-context.js';
+import dbPlugin from './plugins/db.js';
 import { registerErrorHandler } from './utils/error-handler.js';
 import { healthRoutes } from './routes/health.js';
 
@@ -34,6 +35,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
   await app.register(sensible);
   await app.register(requestContextPlugin);
+  await app.register(dbPlugin);
 
   // --- error handler ---
   registerErrorHandler(app);
