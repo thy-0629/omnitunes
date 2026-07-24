@@ -16,6 +16,10 @@ const ConfigSchema = z.object({
     .describe('SQLite file URL, e.g. file:./data/omnitune.sqlite'),
   MEDIA_DIR: z.string().default('./data/media'),
   CACHE_DIR: z.string().default('./data/cache'),
+
+  // Lifecycle
+  LIFECYCLE_RETENTION_DAYS: z.coerce.number().int().positive().default(30).describe('Delete play_history and soft-deleted source_items older than this many days'),
+  LIFECYCLE_INTERVAL_HOURS: z.coerce.number().int().positive().default(24).describe('How often to run cleanup, in hours'),
 });
 
 const parsed = ConfigSchema.safeParse(process.env);

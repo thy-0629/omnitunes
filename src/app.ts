@@ -12,6 +12,7 @@ import searchPlugin from './modules/search/plugin.js';
 import playbackPlugin from './modules/playback/plugin.js';
 import queuePlugin from './modules/queue/plugin.js';
 import wsHubPlugin from './modules/ws/plugin.js';
+import lifecyclePlugin from './modules/lifecycle/plugin.js';
 import { registerErrorHandler } from './utils/error-handler.js';
 import { healthRoutes } from './routes/health.js';
 import { sourceRoutes } from './routes/sources.js';
@@ -23,6 +24,7 @@ import { queueRoutes } from './routes/queue.js';
 import { collectionRoutes } from './routes/collections.js';
 import { playlistRoutes } from './routes/playlists.js';
 import { wsRoutes } from './routes/ws.js';
+import { lifecycleRoutes } from './routes/lifecycle.js';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -57,6 +59,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(playbackPlugin);
   await app.register(queuePlugin);
   await app.register(wsHubPlugin);
+  await app.register(lifecyclePlugin);
 
   // --- error handler ---
   registerErrorHandler(app);
@@ -72,6 +75,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(collectionRoutes);
   await app.register(playlistRoutes);
   await app.register(wsRoutes);
+  await app.register(lifecycleRoutes);
 
   return app;
 }
