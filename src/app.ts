@@ -18,6 +18,8 @@ import { playbackRoutes } from './routes/playback.js';
 import { localStreamRoutes } from './routes/local-stream.js';
 import { historyRoutes } from './routes/history.js';
 import { queueRoutes } from './routes/queue.js';
+import { collectionRoutes } from './routes/collections.js';
+import { playlistRoutes } from './routes/playlists.js';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -62,6 +64,8 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(localStreamRoutes);
   await app.register(historyRoutes);
   await app.register(queueRoutes);
+  await app.register(collectionRoutes);
+  await app.register(playlistRoutes);
 
   return app;
 }
