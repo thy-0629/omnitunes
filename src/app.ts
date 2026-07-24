@@ -9,12 +9,15 @@ import dbPlugin from './plugins/db.js';
 import sourcesPlugin from './modules/sources/plugin.js';
 import searchPlugin from './modules/search/plugin.js';
 import playbackPlugin from './modules/playback/plugin.js';
+import queuePlugin from './modules/queue/plugin.js';
 import { registerErrorHandler } from './utils/error-handler.js';
 import { healthRoutes } from './routes/health.js';
 import { sourceRoutes } from './routes/sources.js';
 import { searchRoutes } from './routes/search.js';
 import { playbackRoutes } from './routes/playback.js';
 import { localStreamRoutes } from './routes/local-stream.js';
+import { historyRoutes } from './routes/history.js';
+import { queueRoutes } from './routes/queue.js';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -46,6 +49,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(sourcesPlugin);
   await app.register(searchPlugin);
   await app.register(playbackPlugin);
+  await app.register(queuePlugin);
 
   // --- error handler ---
   registerErrorHandler(app);
@@ -56,6 +60,8 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(searchRoutes);
   await app.register(playbackRoutes);
   await app.register(localStreamRoutes);
+  await app.register(historyRoutes);
+  await app.register(queueRoutes);
 
   return app;
 }
