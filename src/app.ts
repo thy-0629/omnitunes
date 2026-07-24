@@ -14,6 +14,7 @@ import { healthRoutes } from './routes/health.js';
 import { sourceRoutes } from './routes/sources.js';
 import { searchRoutes } from './routes/search.js';
 import { playbackRoutes } from './routes/playback.js';
+import { localStreamRoutes } from './routes/local-stream.js';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -54,6 +55,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(sourceRoutes);
   await app.register(searchRoutes);
   await app.register(playbackRoutes);
+  await app.register(localStreamRoutes);
 
   return app;
 }
