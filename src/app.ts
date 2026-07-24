@@ -7,9 +7,11 @@ import { config } from './config/env.js';
 import requestContextPlugin from './plugins/request-context.js';
 import dbPlugin from './plugins/db.js';
 import sourcesPlugin from './modules/sources/plugin.js';
+import searchPlugin from './modules/search/plugin.js';
 import { registerErrorHandler } from './utils/error-handler.js';
 import { healthRoutes } from './routes/health.js';
 import { sourceRoutes } from './routes/sources.js';
+import { searchRoutes } from './routes/search.js';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -39,6 +41,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(requestContextPlugin);
   await app.register(dbPlugin);
   await app.register(sourcesPlugin);
+  await app.register(searchPlugin);
 
   // --- error handler ---
   registerErrorHandler(app);
@@ -46,6 +49,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   // --- routes ---
   await app.register(healthRoutes);
   await app.register(sourceRoutes);
+  await app.register(searchRoutes);
 
   return app;
 }
