@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import sensible from '@fastify/sensible';
+import websocket from '@fastify/websocket';
 import { config } from './config/env.js';
 import requestContextPlugin from './plugins/request-context.js';
 import dbPlugin from './plugins/db.js';
@@ -10,6 +11,7 @@ import sourcesPlugin from './modules/sources/plugin.js';
 import searchPlugin from './modules/search/plugin.js';
 import playbackPlugin from './modules/playback/plugin.js';
 import queuePlugin from './modules/queue/plugin.js';
+import wsHubPlugin from './modules/ws/plugin.js';
 import { registerErrorHandler } from './utils/error-handler.js';
 import { healthRoutes } from './routes/health.js';
 import { sourceRoutes } from './routes/sources.js';
@@ -20,6 +22,7 @@ import { historyRoutes } from './routes/history.js';
 import { queueRoutes } from './routes/queue.js';
 import { collectionRoutes } from './routes/collections.js';
 import { playlistRoutes } from './routes/playlists.js';
+import { wsRoutes } from './routes/ws.js';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -46,12 +49,14 @@ export async function buildServer(): Promise<FastifyInstance> {
     credentials: true,
   });
   await app.register(sensible);
+  await app.register(websocket);
   await app.register(requestContextPlugin);
   await app.register(dbPlugin);
   await app.register(sourcesPlugin);
   await app.register(searchPlugin);
   await app.register(playbackPlugin);
   await app.register(queuePlugin);
+  await app.register(wsHubPlugin);
 
   // --- error handler ---
   registerErrorHandler(app);
@@ -66,6 +71,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(queueRoutes);
   await app.register(collectionRoutes);
   await app.register(playlistRoutes);
+  await app.register(wsRoutes);
 
   return app;
 }

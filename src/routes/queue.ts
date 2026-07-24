@@ -54,6 +54,12 @@ export async function queueRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const item = app.queue.add(parsed.data.songWorkId, parsed.data.sourceItemId);
+    app.wsHub.broadcast('queue', {
+      type: 'queue:changed',
+      action: 'add',
+      songWorkId: parsed.data.songWorkId,
+      total: app.queue.length,
+    });
     return reply.status(201).send({ item, total: app.queue.length });
   });
 
@@ -73,6 +79,12 @@ export async function queueRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
+    app.wsHub.broadcast('queue', {
+      type: 'queue:changed',
+      action: 'remove',
+      position: pos,
+      total: app.queue.length,
+    });
     return { ok: true, total: app.queue.length };
   });
 
@@ -116,12 +128,25 @@ export async function queueRoutes(app: FastifyInstance): Promise<void> {
       resolve,
     };
 
+    app.wsHub.broadcast('queue', {
+      type: 'queue:changed',
+      action: 'next',
+      songWorkId: item.songWorkId,
+      total: app.queue.length,
+    });
+
     return result;
   });
 
   // POST /api/queue/clear
   app.post('/api/queue/clear', async () => {
     const removed = app.queue.clear();
+    app.wsHub.broadcast('queue', {
+      type: 'queue:changed',
+      action: 'clear',
+      removed,
+      total: 0,
+    });
     return { ok: true, removed };
   });
 }

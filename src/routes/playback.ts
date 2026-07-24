@@ -89,6 +89,14 @@ export async function playbackRoutes(app: FastifyInstance): Promise<void> {
         optionId: parsed.data.optionId,
         trigger: parsed.data.trigger,
       });
+      // broadcast play:started to all WS clients on the playback channel
+      app.wsHub.broadcast('playback', {
+        type: 'play:started',
+        playId: result.playId,
+        source: result.option.source,
+        sourceItemId: result.option.sourceItem.id,
+        optionType: result.option.option.type,
+      });
       return result;
     } catch (err) {
       return mapPlayError(reply, err);
@@ -105,10 +113,18 @@ export async function playbackRoutes(app: FastifyInstance): Promise<void> {
     }
 
     try {
-      return app.playback.endPlay(req.params.playId, {
+      const result = app.playback.endPlay(req.params.playId, {
         outcome: parsed.data.outcome,
         durationPlayedSec: parsed.data.durationPlayedSec,
       });
+      // broadcast play:ended to all WS clients on the playback channel
+      app.wsHub.broadcast('playback', {
+        type: 'play:ended',
+        playId: req.params.playId,
+        outcome: parsed.data.outcome,
+        durationPlayedSec: parsed.data.durationPlayedSec ?? null,
+      });
+      return result;
     } catch (err) {
       return mapPlayError(reply, err);
     }
@@ -125,6 +141,14 @@ export async function playbackRoutes(app: FastifyInstance): Promise<void> {
 
     try {
       const result = await app.playback.fallback(req.params.playId, { reason: parsed.data.reason });
+      // broadcast play:fallback to all WS clients on the playback channel
+      app.wsHub.broadcast('playback', {
+        type: 'play:fallback',
+        oldPlayId: req.params.playId,
+        newPlayId: result.playId,
+        source: result.option.source,
+        sourceItemId: result.option.sourceItem.id,
+      });
       return result;
     } catch (err) {
       return mapPlayError(reply, err);
