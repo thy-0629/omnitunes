@@ -17,7 +17,10 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "eslint . --ext .ts",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
@@ -36,9 +39,11 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.14.10",
     "@types/ws": "^8.18.1",
+    "@vitest/utils": "^3.2.7",
     "drizzle-kit": "^0.28.1",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3",
+    "vitest": "^3.2.7",
     "ws": "^8.21.1"
   }
 }
