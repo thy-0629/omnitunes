@@ -1,24 +1,7 @@
-import fp from 'fastify-plugin';
+// Replaced by §十一 cache plugin (./modules/cache/plugin.ts).
+// The cache plugin now owns the playback orchestrator + its wrapper.
 import type { FastifyInstance } from 'fastify';
-import { PlaybackOrchestrator } from './orchestrator.js';
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    playback: PlaybackOrchestrator;
-  }
+export default async function _legacyPlaybackPlugin(_app: FastifyInstance): Promise<void> {
+  // intentionally empty — the cache plugin does the real work
 }
-
-/**
- * Wire the playback orchestrator onto the app as `app.playback`.
- *
- * Depends on `db` (playable_options + play_history persistence) and `sources`
- * (the registry for live getPlayOptions fan-out).
- */
-export default fp(
-  async (app: FastifyInstance) => {
-    const orchestrator = new PlaybackOrchestrator(app.db, app.sources);
-    app.decorate('playback', orchestrator);
-    app.log.info('[playback] orchestrator ready');
-  },
-  { name: 'playback', dependencies: ['db', 'sources'] },
-);

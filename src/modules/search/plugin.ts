@@ -1,27 +1,9 @@
-import fp from 'fastify-plugin';
+// Replaced by §十一 cache plugin (./modules/cache/plugin.ts).
+// The cache plugin now owns the unified search service + the underlying
+// normalizer; this file is kept only to avoid stray imports elsewhere.
+// It is no longer registered in app.ts.
 import type { FastifyInstance } from 'fastify';
-import { Normalizer } from './normalizer.js';
-import { UnifiedSearchService } from './service.js';
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    search: UnifiedSearchService;
-  }
+export default async function _legacySearchPlugin(_app: FastifyInstance): Promise<void> {
+  // intentionally empty — the cache plugin does the real work
 }
-
-/**
- * Wire the unified search service onto the app as `app.search`.
- *
- * Depends on `db` (for the Normalizer's persistence) and `sources` (for the
- * registry the service fans out to). Adding search to a new app is a one-line
- * register() call in app.ts.
- */
-export default fp(
-  async (app: FastifyInstance) => {
-    const normalizer = new Normalizer(app.db);
-    const service = new UnifiedSearchService(app.sources, normalizer);
-    app.decorate('search', service);
-    app.log.info('[search] unified search service ready');
-  },
-  { name: 'search', dependencies: ['db', 'sources'] },
-);

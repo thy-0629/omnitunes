@@ -20,6 +20,12 @@ const ConfigSchema = z.object({
   // Lifecycle
   LIFECYCLE_RETENTION_DAYS: z.coerce.number().int().positive().default(30).describe('Delete play_history and soft-deleted source_items older than this many days'),
   LIFECYCLE_INTERVAL_HOURS: z.coerce.number().int().positive().default(24).describe('How often to run cleanup, in hours'),
+
+  // Cache (§十一 — online-first, short TTLs, never persisted)
+  SEARCH_CACHE_TTL_SEC: z.coerce.number().int().positive().default(60).describe('Search result cache TTL in seconds'),
+  SEARCH_CACHE_MAX_ENTRIES: z.coerce.number().int().positive().default(100),
+  PLAY_OPTIONS_CACHE_TTL_SEC: z.coerce.number().int().positive().default(30).describe('Per-source-item resolve cache TTL; signed URLs expire fast so use short TTL'),
+  PLAY_OPTIONS_CACHE_MAX_ENTRIES: z.coerce.number().int().positive().default(500),
 });
 
 const parsed = ConfigSchema.safeParse(process.env);

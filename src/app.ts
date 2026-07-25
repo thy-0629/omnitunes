@@ -8,8 +8,9 @@ import { config } from './config/env.js';
 import requestContextPlugin from './plugins/request-context.js';
 import dbPlugin from './plugins/db.js';
 import sourcesPlugin from './modules/sources/plugin.js';
-import searchPlugin from './modules/search/plugin.js';
-import playbackPlugin from './modules/playback/plugin.js';
+// §十一: search + playback are wrapped by the cache plugin — original
+//        search/playback plugins are merged into cache/plugin.ts.
+import cachePlugin from './modules/cache/plugin.js';
 import queuePlugin from './modules/queue/plugin.js';
 import wsHubPlugin from './modules/ws/plugin.js';
 import lifecyclePlugin from './modules/lifecycle/plugin.js';
@@ -25,6 +26,7 @@ import { collectionRoutes } from './routes/collections.js';
 import { playlistRoutes } from './routes/playlists.js';
 import { wsRoutes } from './routes/ws.js';
 import { lifecycleRoutes } from './routes/lifecycle.js';
+import { cacheRoutes } from './routes/cache.js';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -55,8 +57,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(requestContextPlugin);
   await app.register(dbPlugin);
   await app.register(sourcesPlugin);
-  await app.register(searchPlugin);
-  await app.register(playbackPlugin);
+  await app.register(cachePlugin);
   await app.register(queuePlugin);
   await app.register(wsHubPlugin);
   await app.register(lifecyclePlugin);
@@ -76,6 +77,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(playlistRoutes);
   await app.register(wsRoutes);
   await app.register(lifecycleRoutes);
+  await app.register(cacheRoutes);
 
   return app;
 }
