@@ -14,10 +14,12 @@ in subsequent phases.
 - **TypeScript 5**
 - **Fastify 4** (HTTP server)
 - **zod** (config + payload validation)
-- **pino** + pino-pretty (logging)
+- **pino** + pino-pretty (structured logging with request tracing)
+- **SQLite + Drizzle** (data persistence)
+- **@fastify/websocket** (real-time events)
+- **Bearer token authentication** (single-user MVP)
 
-Planned additions (later phases): SQLite + Drizzle, ffmpeg integration, WebSocket,
-@fastify/websocket, Docker data volumes.
+Additional: helmet, cors, sensible, better-sqlite3, sha1 hashing, LRU+TTL caching.
 
 ## Project layout
 
@@ -74,11 +76,61 @@ pnpm dlx tsx src/smoke.ts
 
 ## Endpoints
 
-| Method | Path      | Description                       |
-|--------|-----------|-----------------------------------|
-| GET    | /health   | Liveness/readiness probe          |
+### Health & Status
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Liveness/readiness probe |
 
-More endpoints (search, play, playlists, history, ...) land in the next phases.
+### Sources
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/sources` | List registered sources |
+| GET | `/api/sources/health` | Health check all sources |
+| GET | `/api/sources/:id/health` | Health check single source |
+| GET | `/api/sources/:id/search` | Test search on single source |
+
+### Search & Playback
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/search?q=&limit=&sources=` | Unified cross-source search |
+| POST | `/api/play/resolve` | Resolve playable options |
+| POST | `/api/play/start` | Start playback session |
+| POST | `/api/play/:id/end` | End playback session |
+| POST | `/api/play/:id/fallback` | Switch to fallback source |
+| GET | `/api/local/stream/:id` | Stream local media (HTTP Range) |
+
+### User Data
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/history` | Paginated play history |
+| GET | `/api/history/:songWorkId` | History for specific song |
+| GET/POST | `/api/queue` | List/add to play queue |
+| DELETE | `/api/queue/:position` | Remove item at position |
+| POST | `/api/queue/next` | Pop next & auto-play |
+| POST | `/api/queue/clear` | Clear entire queue |
+| GET/POST | `/api/collections` | List/add favorites |
+| DELETE | `/api/collections/:songWorkId` | Remove favorite |
+| PATCH | `/api/collections/:songWorkId` | Update preferred source |
+| GET/POST | `/api/playlists` | List/create playlists |
+| GET/PATCH/DELETE | `/api/playlists/:id` | Get/edit/delete playlist |
+| POST | `/api/playlists/:id/items` | Add song to playlist |
+| DELETE | `/api/playlists/:id/items/:itemId` | Remove from playlist |
+| PATCH | `/api/playlists/:id/items/:itemId` | Reorder playlist item |
+
+### WebSocket
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/ws` | WebSocket upgrade (3 channels) |
+| GET | `/api/ws/status` | Connection count |
+
+### Admin
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/cache/status` | Cache stats & config |
+| POST | `/api/cache/invalidate` | Invalidate single cache entry |
+| POST | `/api/cache/clear` | Clear all caches |
+| GET | `/api/lifecycle/status` | Cleanup task status |
+| POST | `/api/lifecycle/run` | Trigger manual cleanup |
 
 ## Environment variables
 
@@ -93,6 +145,57 @@ exits non-zero if anything is missing or malformed.
 | LOG_LEVEL    |          | info                     | fatal / error / warn / info / debug / trace |
 | AUTH_TOKEN   |          | change-me-in-production  | MVP single-user bearer token (≥8 chars) |
 | CORS_ORIGIN  |          | *                        | Comma-separated origins or `*`          |
+
+## Logging
+
+The backend uses **pino** for structured JSON logging with request tracing.
+
+### Configuration
+- `LOG_LEVEL`: Controls verbosity (fatal/error/warn/info/debug/trace). Default: `info`.
+- In development mode (`NODE_ENV=development`), logs are pretty-printed with `pino-pretty`.
+- In production, logs are output as newline-delimited JSON.
+
+### Request Tracing
+Every request gets a unique `requestId` (UUID) that is:
+1. Read from incoming `x-request-id` header if present, otherwise auto-generated
+2. Echoed back in response headers
+3. Included in all log entries for the request lifecycle
+4. Included in error responses
+
+### Log Levels
+- **info**: Successful requests (2xx), startup/shutdown events
+- **warn**: Client errors (4xx), non-fatal issues
+- **error**: Server errors (5xx), unhandled exceptions
+- **debug**: Detailed debugging information (enable with `LOG_LEVEL=debug`)
+
+## Authentication
+
+The backend uses **Bearer token authentication** for protected endpoints.
+
+### Configuration
+Set `AUTH_TOKEN` environment variable (minimum 8 characters). If not set or set to the default value `change-me-in-production`, authentication is **disabled** (development mode).
+
+### Usage
+```bash
+# Authenticated request
+curl -H "Authorization: Bearer your-secret-token" http://localhost:3000/api/queue
+
+# Unauthenticated (public routes only)
+curl http://localhost:3000/health
+```
+
+### Public Routes (no authentication required)
+- `GET /health`
+- `GET /api/sources`, `/api/sources/health`, `/api/sources/:id/health`
+- `GET /api/search`
+- `GET /api/history`, `/api/history/:songWorkId`
+- `GET /api/queue`
+- `GET /api/collections`
+- `GET /api/playlists`, `/api/playlists/:id`
+- `GET /api/cache/status`, `/api/lifecycle/status`
+- `GET /ws` (WebSocket upgrade)
+
+All other routes (POST, PATCH, DELETE) require authentication.
 
 ## Docker
 
@@ -112,15 +215,26 @@ Set `AUTH_TOKEN` in a `.env` file next to `docker-compose.yml` before bringing i
 
 ## Roadmap (this repo)
 
-This scaffolding covers **Phase 0 — Foundation**. The next phases will add:
+### Completed Phases (§1-§12)
+1. ✅ Project scaffolding, config validation, health check, error handling
+2. ✅ SQLite + Drizzle data layer (5-entity schema)
+3. ✅ Source adapter layer (YouTube, OpenSource, Local adapters)
+4. ✅ Unified search & content normalization
+5. ✅ Playback orchestrator with auto-fallback
+6. ✅ Queue / history / favorites / playlists
+7. ✅ WebSocket real-time events (3 channels)
+8. ✅ Local media scanning & ffmpeg integration
+9. ✅ Health probes per source + third-party data lifecycle
+10. ✅ LRU+TTL caching layer (search + playback options)
+11. ✅ pino structured logging with request tracing (§13)
+12. ✅ Bearer token authentication (§14)
 
-1. Data layer (SQLite + Drizzle, five-entity schema)
-2. Source adapter layer (`YouTubeAdapter`, `OpenSourceAdapter`, `LocalAdapter`)
-3. Unified search & content normalization
-4. Playback orchestrator with auto-fallback
-5. Queue / history / favorites / playlists
-6. WebSocket for real-time events
-7. Local media scanning & ffmpeg integration
-8. Health probes per source + third-party data lifecycle
+### In Progress
+- Unit test coverage expansion
+- GitHub Actions CI pipeline
 
-See the product brief for the full scope.
+### Future Phases
+- Rate limiting
+- API documentation (OpenAPI/Swagger)
+- User management (multi-user support)
+- Advanced caching strategies

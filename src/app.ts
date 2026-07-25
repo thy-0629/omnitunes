@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
@@ -6,6 +5,7 @@ import sensible from '@fastify/sensible';
 import websocket from '@fastify/websocket';
 import { config } from './config/env.js';
 import requestContextPlugin from './plugins/request-context.js';
+import authPlugin from './plugins/auth.js';
 import dbPlugin from './plugins/db.js';
 import sourcesPlugin from './modules/sources/plugin.js';
 // §十一: search + playback are wrapped by the cache plugin — original
@@ -37,13 +37,9 @@ export async function buildServer(): Promise<FastifyInstance> {
           ? { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' } }
           : undefined,
     },
-    disableRequestLogging: false,
+    disableRequestLogging: true, // 禁用Fastify默认日志，由requestContextPlugin统一处理
     requestIdHeader: 'x-request-id',
     requestIdLogLabel: 'requestId',
-    genReqId: (req) => {
-      const incoming = req.headers['x-request-id'];
-      return typeof incoming === 'string' && incoming.length > 0 ? incoming : randomUUID();
-    },
   });
 
   // --- plugins (order matters) ---
@@ -55,6 +51,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(sensible);
   await app.register(websocket);
   await app.register(requestContextPlugin);
+  await app.register(authPlugin);
   await app.register(dbPlugin);
   await app.register(sourcesPlugin);
   await app.register(cachePlugin);
