@@ -3,7 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Omnitune - multi-source online music aggregation player (backend)",
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.omnitunes.app",
+    "productName": "Omnitunes",
+    "asar": false,
+    "npmRebuild": false,
+    "files": [
+      "dist/**/*",
+      "web/dist/**/*",
+      "electron/**/*",
+      "drizzle/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable"
+    },
+    "directories": {
+      "output": "release"
+    }
+  },
+  "description": "Omnitunes - multi-source online music aggregation player (backend)",
   "engines": {
     "node": ">=20"
   },
@@ -23,12 +43,16 @@
     "test:coverage": "vitest run --coverage",
     "dev:web": "pnpm --filter omnitunes-web dev",
     "build:web": "pnpm --filter omnitunes-web build",
-    "typecheck:web": "pnpm --filter omnitunes-web typecheck"
+    "typecheck:web": "pnpm --filter omnitunes-web typecheck",
+    "dev:electron": "cross-env ELECTRON_DEV=1 electron .",
+    "start:electron": "electron .",
+    "dist:electron": "pnpm build && pnpm build:web && electron-builder --win portable"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
     "@fastify/helmet": "^11.1.1",
     "@fastify/sensible": "^5.6.0",
+    "@fastify/static": "^7.0.4",
     "@fastify/websocket": "^10.0.1",
     "better-sqlite3": "^12.11.1",
     "dotenv": "^16.4.5",
@@ -44,7 +68,10 @@
     "@types/node": "^20.14.10",
     "@types/ws": "^8.18.1",
     "@vitest/utils": "^3.2.7",
+    "cross-env": "^10.1.0",
     "drizzle-kit": "^0.28.1",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3",
     "vitest": "^3.2.7",

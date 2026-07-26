@@ -28,3 +28,6 @@ data/
 *.sqlite
 *.sqlite-journal
 *.db
+
+# electron-builder output
+release/

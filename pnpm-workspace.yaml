@@ -3,7 +3,11 @@ packages:
 
 allowBuilds:
   better-sqlite3: true
+  electron-winstaller: false
   esbuild: true
 onlyBuiltDependencies:
   - esbuild
   - better-sqlite3
+  - electron
+ignoredBuiltDependencies:
+  - electron-winstaller

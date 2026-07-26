@@ -75,6 +75,30 @@ pnpm dlx tsx src/smoke.ts
 # OK: {"status":"ok","uptime":...,"version":"0.1.0",...}
 ```
 
+## Desktop app (Electron)
+
+```bash
+# dev mode: backend + vite dev server must be running, then
+pnpm dev:electron      # loads :5173 with HMR
+
+# production mode: build backend+web, run the Electron shell
+pnpm build && pnpm build:web
+pnpm start:electron    # auto-spawns dist/server.js, loads the served SPA
+
+# package a portable Windows exe → release/Omnitunes <version>.exe
+pnpm dist:electron
+```
+
+Notes:
+- The backend also serves `web/dist` statically when it exists — single-port
+  mode works without Electron too (`node dist/server.js` → http://localhost:3000).
+- App data (SQLite, media, cache) lives in the OS user-data dir when running
+  under Electron (`%APPDATA%/omnitune-backend/data`), migrations auto-apply at boot.
+- The Electron main process spawns the backend with the **system Node**
+  (`node` on PATH) because better-sqlite3 is a native module built for the
+  system Node ABI. If no system Node is found it falls back to
+  `ELECTRON_RUN_AS_NODE` (requires electron-rebuilt native modules).
+
 ## Available scripts
 
 | Command             | What it does                              |

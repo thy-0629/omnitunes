@@ -1,4 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import sensible from '@fastify/sensible';
@@ -75,6 +77,24 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(wsRoutes);
   await app.register(lifecycleRoutes);
   await app.register(cacheRoutes);
+
+  // --- static web frontend (production / Electron single-port mode) ---
+  // Serves web/dist if it has been built. In dev, the Vite server (:5173)
+  // is used instead and this is simply absent.
+  const webDist = resolve(process.cwd(), 'web', 'dist');
+  if (existsSync(resolve(webDist, 'index.html'))) {
+    const { default: fastifyStatic } = await import('@fastify/static');
+    await app.register(fastifyStatic, { root: webDist });
+    // SPA fallback: unknown non-API GETs return index.html (client-side routing)
+    app.setNotFoundHandler((req, reply) => {
+      if (req.method === 'GET' && !req.url.startsWith('/api') && req.url !== '/ws') {
+        return reply.sendFile('index.html');
+      }
+      return reply
+        .status(404)
+        .send({ error: { code: 'not_found', message: `route ${req.method} ${req.url} not found` } });
+    });
+  }
 
   return app;
 }
