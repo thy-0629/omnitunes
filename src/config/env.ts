@@ -26,6 +26,11 @@ const ConfigSchema = z.object({
   SEARCH_CACHE_MAX_ENTRIES: z.coerce.number().int().positive().default(100),
   PLAY_OPTIONS_CACHE_TTL_SEC: z.coerce.number().int().positive().default(30).describe('Per-source-item resolve cache TTL; signed URLs expire fast so use short TTL'),
   PLAY_OPTIONS_CACHE_MAX_ENTRIES: z.coerce.number().int().positive().default(500),
+
+  // Bilibili (keyless web search; optional cookie improves stability)
+  BILIBILI_SESSDATA: z.string().optional().describe('Optional SESSDATA cookie from a logged-in browser session; anonymous search risks -412 risk-control'),
+  BILIBILI_MIN_INTERVAL_MS: z.coerce.number().int().min(100).default(800).describe('Minimum interval between bilibili API calls'),
+  BILIBILI_WBI_TTL_SEC: z.coerce.number().int().positive().default(86400).describe('How long to cache the wbi signing keys'),
 });
 
 const parsed = ConfigSchema.safeParse(process.env);

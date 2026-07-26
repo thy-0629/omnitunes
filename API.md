@@ -73,12 +73,14 @@ Authorization: Bearer <your-token>
 |------|------|------|------|
 | q | string | ✅ | 搜索关键词，1-200字符 |
 | limit | number | ❌ | 返回数量，1-50，默认取决于音源 |
-| sources | string | ❌ | 逗号分隔的音源ID，如 `mock,local,youtube` |
+| sources | string | ❌ | 逗号分隔的音源ID，如 `open_source,bilibili,local` |
 
 **音源 ID**：
-- `mock` — 开发测试用
+- `open_source` — Internet Archive（免 key，官方 API，stream 直链播放）
+- `bilibili` — B 站（免 key，网页搜索 + 官方 iframe 嵌入播放）
 - `local` — 本地文件
-- `youtube` — YouTube（需配置 API Key）
+- `mock` — 开发测试用（仅非生产环境）
+- `youtube` — YouTube（需配置 API Key，未配置时自动禁用）
 
 **响应**：
 ```json
@@ -192,9 +194,12 @@ Authorization: Bearer <your-token>
 ```
 
 **播放选项类型**（`option.type`）：
-- `embed` — 嵌入式播放（如 YouTube iframe）
-- `stream` — 流媒体 URL
-- `local` — 本地文件
+- `embed` — 嵌入式播放（iframe）。按 `source` 构造 iframe URL：
+  - `bilibili`：payload 为 bvid → `https://player.bilibili.com/player.html?bvid=<payload>&autoplay=0`（必须用 player.bilibili.com，主站有 X-Frame-Options）
+  - `youtube`：payload 为 videoId → `https://www.youtube-nocookie.com/embed/<payload>`
+  - embed 方式无法获取播放进度事件，进度上报不可用
+- `stream` — 流媒体 URL（如 archive.org 直链，支持 Range、带 CORS 头），直接用 `<audio>` 播放
+- `local` — 本地文件，payload 为相对路径；用 `GET /api/local/stream/:sourceItemId` 播放
 
 **排序规则**：local > stream > embed，首选音源会排在最前。
 
@@ -992,8 +997,9 @@ ws://localhost:3000/ws
 | HTTP 状态码 | 错误码 | 说明 |
 |------------|--------|------|
 | 400 | validation_error | 请求参数验证失败 |
-| 400 | queue_empty | 队列为空 |
+| 404 | queue_empty | 队列为空 |
 | 400 | not_local | 非本地音源，无法流式播放 |
+| 400 | path_traversal | 非法路径（目录穿越防护） |
 | 400 | range_not_satisfiable | 请求范围超出文件大小 |
 | 401 | unauthorized | 未认证或 token 无效 |
 | 404 | not_found | 资源不存在 |

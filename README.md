@@ -1,45 +1,53 @@
-# Omnitune Backend
+# Omnitunes
 
-> Multi-source online music aggregation player — backend service.
-> Search once, click once, play immediately. No full downloads, no DRM circumvention.
+> Multi-source online music aggregation player. Search once, click once, play immediately.
+> No full downloads, no track extraction, no DRM circumvention — playback honors each
+> source's official rules (embed iframe or authorized stream).
 
-This repo currently contains the **scaffolding** of the backend: project structure,
-configuration loading, health check, error handling, and graceful shutdown. Business
-modules (source adapters, unified search, playback orchestrator, etc.) are added
-in subsequent phases.
+**Keyless by design**: the default online sources (Internet Archive, bilibili) need
+**no API key**. YouTube stays available as an optional key-based source.
+
+## Sources
+
+| Source | ID | Search | Playback | Key? |
+|--------|----|--------|----------|------|
+| Internet Archive | `open_source` | official advancedsearch API | `stream` — direct audio URL (Range + CORS enabled) | ❌ |
+| bilibili | `bilibili` | web search (WBI-signed) | `embed` — official player iframe | ❌ (optional SESSDATA cookie improves stability) |
+| Local files | `local` | `MEDIA_DIR` filename match | `local` — `/api/local/stream/:id` with Range | ❌ |
+| YouTube | `youtube` | Data API v3 | `embed` — IFrame player | ✅ `YOUTUBE_API_KEY` (disabled without it) |
+| Mock | `mock` | deterministic fixtures | — | dev only |
 
 ## Stack
 
-- **Node.js 20** (ESM)
-- **TypeScript 5**
-- **Fastify 4** (HTTP server)
-- **zod** (config + payload validation)
-- **pino** + pino-pretty (structured logging with request tracing)
+Backend (repo root):
+- **Node.js 20+** (ESM), **TypeScript 5**, **Fastify 4**, **zod**, **pino**
 - **SQLite + Drizzle** (data persistence)
 - **@fastify/websocket** (real-time events)
 - **Bearer token authentication** (single-user MVP)
+- **undici** (proxy-aware fetch: honors `HTTP(S)_PROXY` for outbound source calls)
 
-Additional: helmet, cors, sensible, better-sqlite3, sha1 hashing, LRU+TTL caching.
+Frontend (`web/`):
+- **React 18 + TypeScript + Vite**, **Zustand**, **Tailwind CSS v3**, react-router
+- Talks to the backend through the Vite dev proxy (`/api`, `/ws` → `localhost:3000`)
 
 ## Project layout
 
 ```
-omnitune-backend/
+omnitunes/
 ├── src/
 │   ├── config/         # env loading & validation
-│   ├── plugins/        # fastify plugins (request-context, ...)
-│   ├── routes/         # HTTP route modules (health, ...)
-│   ├── modules/        # business modules (source adapters, search, ...)
-│   ├── utils/          # cross-cutting helpers (error handler, ...)
-│   ├── types/          # shared types
+│   ├── plugins/        # fastify plugins (request-context, auth, db)
+│   ├── routes/         # HTTP route modules
+│   ├── modules/        # business modules (sources, search, playback, queue, ws, cache, lifecycle)
+│   │   └── sources/adapters/   # archive.ts, bilibili.ts (+ bilibili/wbi.ts), local.ts, youtube.ts, mock.ts
+│   ├── utils/          # error handler, proxy support
 │   ├── app.ts          # Fastify instance builder
-│   ├── server.ts       # process entry (listen + graceful shutdown)
-│   └── smoke.ts        # quick self-test: GET /health
-├── test/               # vitest tests
+│   └── server.ts       # process entry (listen + graceful shutdown)
+├── web/                # React frontend (pnpm workspace package "omnitunes-web")
+│   └── src/{pages,components,stores,lib}/
+├── test/unit/          # vitest unit tests
 ├── Dockerfile
 ├── docker-compose.yml
-├── package.json
-├── tsconfig.json
 └── .env.example
 ```
 
@@ -48,31 +56,39 @@ omnitune-backend/
 Requires **Node 20+** and **pnpm 9+**.
 
 ```bash
-# 1. install deps
+# 1. install deps (backend + web workspace)
 pnpm install
 
 # 2. copy env template and edit if needed
 cp .env.example .env
 
-# 3. run in watch mode
+# 3. run the backend in watch mode
 pnpm dev
 # → http://localhost:3000/health
 
-# 4. smoke test
+# 4. run the web frontend (separate terminal)
+pnpm dev:web
+# → http://localhost:5173 (proxies /api and /ws to :3000)
+
+# 5. smoke test
 pnpm dlx tsx src/smoke.ts
 # OK: {"status":"ok","uptime":...,"version":"0.1.0",...}
 ```
 
 ## Available scripts
 
-| Command          | What it does                              |
-|------------------|-------------------------------------------|
-| `pnpm dev`       | Run with `tsx watch` (auto reload)        |
-| `pnpm build`     | Type-check and compile to `dist/`          |
-| `pnpm start`     | Run compiled output (production)          |
-| `pnpm typecheck` | Run `tsc --noEmit` only                   |
-| `pnpm lint`      | Run ESLint (placeholder, add rules later) |
-| `pnpm format`    | Run Prettier on src/ and test/            |
+| Command             | What it does                              |
+|---------------------|-------------------------------------------|
+| `pnpm dev`          | Backend with `tsx watch` (auto reload)    |
+| `pnpm build`        | Type-check and compile backend to `dist/` |
+| `pnpm start`        | Run compiled output (production)          |
+| `pnpm typecheck`    | Backend `tsc --noEmit`                    |
+| `pnpm test`         | Backend unit tests (vitest)               |
+| `pnpm dev:web`      | Frontend dev server (Vite, :5173)         |
+| `pnpm build:web`    | Frontend production build                 |
+| `pnpm typecheck:web`| Frontend `tsc`                            |
+| `pnpm lint`         | Run ESLint (placeholder, add rules later) |
+| `pnpm format`       | Run Prettier on src/ and test/            |
 
 ## Endpoints
 
@@ -126,11 +142,11 @@ pnpm dlx tsx src/smoke.ts
 ### Admin
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/cache/status` | Cache stats & config |
-| POST | `/api/cache/invalidate` | Invalidate single cache entry |
-| POST | `/api/cache/clear` | Clear all caches |
-| GET | `/api/lifecycle/status` | Cleanup task status |
-| POST | `/api/lifecycle/run` | Trigger manual cleanup |
+| GET | `/api/admin/cache/status` | Cache stats & config |
+| POST | `/api/admin/cache/invalidate` | Invalidate single cache entry |
+| POST | `/api/admin/cache/clear` | Clear all caches |
+| GET | `/api/admin/lifecycle/status` | Cleanup task status |
+| POST | `/api/admin/lifecycle/run` | Trigger manual cleanup |
 
 ## Environment variables
 
@@ -145,6 +161,8 @@ exits non-zero if anything is missing or malformed.
 | LOG_LEVEL    |          | info                     | fatal / error / warn / info / debug / trace |
 | AUTH_TOKEN   |          | change-me-in-production  | MVP single-user bearer token (≥8 chars) |
 | CORS_ORIGIN  |          | *                        | Comma-separated origins or `*`          |
+| BILIBILI_SESSDATA |     | *(empty)*                | Optional bilibili cookie; improves search stability |
+| HTTP(S)_PROXY |         | *(empty)*                | Outbound proxy for source API calls (honored via undici) |
 
 ## Logging
 
@@ -192,7 +210,7 @@ curl http://localhost:3000/health
 - `GET /api/queue`
 - `GET /api/collections`
 - `GET /api/playlists`, `/api/playlists/:id`
-- `GET /api/cache/status`, `/api/lifecycle/status`
+- `GET /api/admin/cache/status`, `/api/admin/lifecycle/status`
 - `GET /ws` (WebSocket upgrade)
 
 All other routes (POST, PATCH, DELETE) require authentication.
@@ -215,7 +233,7 @@ Set `AUTH_TOKEN` in a `.env` file next to `docker-compose.yml` before bringing i
 
 ## Roadmap (this repo)
 
-### Completed Phases (§1-§12)
+### Completed Phases (§1-§14)
 1. ✅ Project scaffolding, config validation, health check, error handling
 2. ✅ SQLite + Drizzle data layer (5-entity schema)
 3. ✅ Source adapter layer (YouTube, OpenSource, Local adapters)
@@ -228,13 +246,13 @@ Set `AUTH_TOKEN` in a `.env` file next to `docker-compose.yml` before bringing i
 10. ✅ LRU+TTL caching layer (search + playback options)
 11. ✅ pino structured logging with request tracing (§13)
 12. ✅ Bearer token authentication (§14)
-
-### In Progress
-- Unit test coverage expansion
-- GitHub Actions CI pipeline
+13. ✅ Keyless sources: Internet Archive adapter + bilibili adapter (WBI signing, rate limiting)
+14. ✅ Web frontend (React + Vite + Zustand + Tailwind, full pages)
+15. ✅ GitHub Actions CI pipeline (backend + web)
 
 ### Future Phases
 - Rate limiting
 - API documentation (OpenAPI/Swagger)
 - User management (multi-user support)
+- Playlist add-from-search UI, queue persistence
 - Advanced caching strategies

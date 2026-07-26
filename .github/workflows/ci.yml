@@ -34,3 +34,9 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Web typecheck
+        run: pnpm --filter omnitunes-web typecheck
+
+      - name: Web build
+        run: pnpm --filter omnitunes-web build

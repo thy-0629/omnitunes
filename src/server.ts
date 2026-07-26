@@ -1,7 +1,12 @@
 import { buildServer } from './app.js';
 import { config } from './config/env.js';
+import { installProxySupport } from './utils/proxy.js';
 
 async function main(): Promise<void> {
+  // Honor HTTP(S)_PROXY for outbound source-adapter calls (undici fetch
+  // ignores those env vars by default). No-op when no proxy is set.
+  installProxySupport();
+
   const app = await buildServer();
 
   // Graceful shutdown

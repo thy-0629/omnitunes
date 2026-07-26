@@ -5,6 +5,8 @@ import { SourceRegistry } from './registry.js';
 import { MockAdapter } from './adapters/mock.js';
 import { LocalAdapter } from './adapters/local.js';
 import { YouTubeAdapter } from './adapters/youtube.js';
+import { ArchiveOrgAdapter } from './adapters/archive.js';
+import { BilibiliAdapter } from './adapters/bilibili.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -32,6 +34,18 @@ export default fp(
 
     // 3. YouTube adapter — wired but disabled until an API key is provided.
     registry.register(new YouTubeAdapter(process.env['YOUTUBE_API_KEY']));
+
+    // 4. Internet Archive — official keyless API, always on.
+    registry.register(new ArchiveOrgAdapter());
+
+    // 5. Bilibili — keyless web search (WBI-signed) + official iframe embed.
+    registry.register(
+      new BilibiliAdapter({
+        sessdata: config.BILIBILI_SESSDATA,
+        minIntervalMs: config.BILIBILI_MIN_INTERVAL_MS,
+        wbiTtlSec: config.BILIBILI_WBI_TTL_SEC,
+      }),
+    );
 
     app.decorate('sources', registry);
     app.log.info(

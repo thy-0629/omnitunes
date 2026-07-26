@@ -13,9 +13,9 @@
  *   - Errors should be thrown as `SourceError` so the orchestrator can classify.
  */
 
-export type SourceId = 'youtube' | 'open_source' | 'local' | 'mock';
+export type SourceId = 'youtube' | 'open_source' | 'local' | 'mock' | 'bilibili';
 
-export const KNOWN_SOURCE_IDS: readonly SourceId[] = ['youtube', 'open_source', 'local', 'mock'];
+export const KNOWN_SOURCE_IDS: readonly SourceId[] = ['youtube', 'open_source', 'local', 'mock', 'bilibili'];
 
 export interface SourceCapabilities {
   /** can answer `search()` queries. */
