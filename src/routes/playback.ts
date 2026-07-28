@@ -84,7 +84,7 @@ export async function playbackRoutes(app: FastifyInstance): Promise<void> {
     }
 
     try {
-      const result = app.playback.startPlay({
+      const result = await app.playback.startPlay({
         sourceItemId: parsed.data.sourceItemId,
         optionId: parsed.data.optionId,
         trigger: parsed.data.trigger,

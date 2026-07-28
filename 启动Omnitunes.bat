@@ -1,6 +1,6 @@
 @echo off
 REM Omnitunes 一键启动：后端 + 前端 + 自动打开浏览器
-cd /d D:\omnitunes
+cd /d "%~dp0"
 
 echo [1/3] 启动后端 API (:3000)...
 start "Omnitunes Backend" /min cmd /k "pnpm dev"

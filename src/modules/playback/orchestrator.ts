@@ -197,7 +197,7 @@ export class PlaybackOrchestrator {
 
   // --- start / end / fallback ------------------------------------------------
 
-  startPlay(req: StartPlayRequest): StartPlayResult {
+  async startPlay(req: StartPlayRequest): Promise<StartPlayResult> {
     const si = this.db
       .select()
       .from(sourceItems)
@@ -215,8 +215,8 @@ export class PlaybackOrchestrator {
       .get();
     if (!rec) throw new PlayError('recording_not_found', `recording not found: ${si.recordingId}`);
 
-    // find the option to play
-    let optionRow: typeof playableOptions.$inferSelect;
+    // pick the option to play
+    let picked: { option: PlayOption; playableOptionId: string };
     if (req.optionId) {
       const found = this.db
         .select()
@@ -225,9 +225,16 @@ export class PlaybackOrchestrator {
         .limit(1)
         .get();
       if (!found) throw new PlayError('option_not_found', `playable option not found: ${req.optionId}`);
-      optionRow = found;
+      picked = {
+        option: {
+          type: found.type as PlayOptionType,
+          payload: found.payload,
+          expiresAt: found.expiresAt,
+        },
+        playableOptionId: found.id,
+      };
     } else {
-      // auto-pick the best (lowest type priority)
+      // auto-pick the best (lowest type priority) from already-persisted options
       const best = this.db
         .select()
         .from(playableOptions)
@@ -243,8 +250,29 @@ export class PlaybackOrchestrator {
           const pb = TYPE_PRIORITY[b.type as PlayOptionType] ?? 99;
           return pa - pb;
         })[0];
-      if (!best) throw new PlayError('no_playable_option', `no playable option for source item: ${si.id}`);
-      optionRow = best;
+
+      if (best) {
+        picked = {
+          option: {
+            type: best.type as PlayOptionType,
+            payload: best.payload,
+            expiresAt: best.expiresAt,
+          },
+          playableOptionId: best.id,
+        };
+      } else {
+        // Nothing persisted yet — e.g. the user hit play straight from a
+        // search result without a prior /resolve. Online-first: live-resolve
+        // now (which also persists the options for next time), then pick best.
+        const resolved = await this.resolvePlay({ sourceItemId: si.id });
+        if (!resolved.best) {
+          throw new PlayError('no_playable_option', `no playable option for source item: ${si.id}`);
+        }
+        picked = {
+          option: resolved.best.option,
+          playableOptionId: resolved.best.playableOptionId,
+        };
+      }
     }
 
     const trigger: Trigger = req.trigger ?? 'manual';
@@ -265,12 +293,8 @@ export class PlaybackOrchestrator {
     const option: RankedPlayOption = {
       rank: 0,
       sourceItem: si,
-      option: {
-        type: optionRow.type as PlayOptionType,
-        payload: optionRow.payload,
-        expiresAt: optionRow.expiresAt,
-      },
-      playableOptionId: optionRow.id,
+      option: picked.option,
+      playableOptionId: picked.playableOptionId,
       source: si.source as SourceId,
     };
 

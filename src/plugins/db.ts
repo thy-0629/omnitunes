@@ -2,8 +2,15 @@ import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { createRequire } from 'node:module';
+import type * as DrizzleMigrator from 'drizzle-orm/better-sqlite3/migrator';
 import { createDb, type DbClient } from '../db/client.js';
+
+// Load the CJS migrator via createRequire so it resolves to migrator.cjs even
+// inside electron-builder packages where the ESM migrator.js may be missing.
+// `import type` is erased at compile time — only the require() runs at runtime.
+const requireModule = createRequire(import.meta.url);
+const { migrate } = requireModule('drizzle-orm/better-sqlite3/migrator') as typeof DrizzleMigrator;
 
 /**
  * Attach a Drizzle/SQLite client to the Fastify instance as `app.db`.
