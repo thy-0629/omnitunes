@@ -11,7 +11,7 @@
  * The backend is killed when the app quits.
  */
 const { app, BrowserWindow } = require('electron');
-const { spawn } = require('node:child_process');
+const { spawn, execSync } = require('node:child_process');
 const path = require('node:path');
 const http = require('node:http');
 const fs = require('node:fs');
@@ -38,6 +38,48 @@ const DEV_URL = 'http://localhost:5173';
 let backend = null;
 let mainWindow = null;
 
+/**
+ * Detect the OS-level HTTP proxy on Windows.
+ *
+ * Clash / V2Ray "system proxy" mode writes the Windows registry but does NOT
+ * set HTTP_PROXY/HTTPS_PROXY env vars. The backend's outbound fetch (undici)
+ * only honors those env vars, so without this it bypasses the proxy and
+ * archive.org times out. Returns an `http://host:port` URL or null.
+ * Explicit HTTP(S)_PROXY env always wins (caller checks first).
+ */
+function detectSystemProxy() {
+  if (process.platform !== 'win32') return null;
+  const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings';
+  try {
+    const enableOut = execSync(`reg query "${key}" /v ProxyEnable`, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    if (!/ProxyEnable\s+REG_DWORD\s+0x1\b/i.test(enableOut)) return null;
+    const serverOut = execSync(`reg query "${key}" /v ProxyServer`, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const m = serverOut.match(/ProxyServer\s+REG_SZ\s+(.+)/);
+    if (!m) return null;
+    let host = m[1].trim();
+    // per-protocol form: "http=127.0.0.1:8080;https=127.0.0.1:8080;socks=..."
+    if (host.includes('=')) {
+      const parts = {};
+      for (const p of host.split(';')) {
+        const [k, v] = p.split('=');
+        if (k && v) parts[k.trim().toLowerCase()] = v.trim();
+      }
+      host = parts.https || parts.http || Object.values(parts)[0] || '';
+    }
+    if (!host) return null;
+    if (!/^https?:\/\//i.test(host)) host = `http://${host}`;
+    return host;
+  } catch {
+    return null;
+  }
+}
+
 function startBackend() {
   const serverEntry = path.join(__dirname, '..', 'dist', 'server.js');
   const dataDir = path.join(app.getPath('userData'), 'data');
@@ -52,6 +94,18 @@ function startBackend() {
     CACHE_DIR: path.join(dataDir, 'cache'),
   };
   delete env.ELECTRON_RUN_AS_NODE;
+
+  // Forward the OS proxy to the backend so source-adapter fetch (archive.org,
+  // bilibili) honors it. The backend's installProxySupport() reads these env
+  // vars and wires undici's EnvHttpProxyAgent. NO_PROXY keeps localhost
+  // (the backend's own /health, local streams) off the proxy.
+  const proxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || detectSystemProxy();
+  if (proxy) {
+    env.HTTP_PROXY = proxy;
+    env.HTTPS_PROXY = proxy;
+    env.NO_PROXY = process.env.NO_PROXY || 'localhost,127.0.0.1,::1';
+    log('using proxy for backend:', proxy);
+  }
 
   // Prefer the system Node: better-sqlite3 is a native module built for the
   // system Node's ABI — Electron's embedded Node has a different ABI and

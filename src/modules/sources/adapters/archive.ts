@@ -35,8 +35,9 @@ const MAX_STREAM_OPTIONS = 2;
 /** Audio extensions we consider playable, best first. */
 const AUDIO_FORMAT_PREFS: Array<{ ext: RegExp; formatHint: RegExp; priority: number }> = [
   { ext: /\.mp3$/i, formatHint: /mp3/i, priority: 0 },
-  { ext: /\.ogg$/i, formatHint: /ogg/i, priority: 1 },
-  { ext: /\.flac$/i, formatHint: /flac/i, priority: 2 },
+  { ext: /\.m4a$/i, formatHint: /m4a|mpeg-4 audio|aac/i, priority: 1 },
+  { ext: /\.ogg$/i, formatHint: /ogg/i, priority: 2 },
+  { ext: /\.flac$/i, formatHint: /flac/i, priority: 3 },
 ];
 
 interface MetadataCacheEntry {
