@@ -9,7 +9,9 @@
     "productName": "Omnitunes",
     "asar": false,
     "npmRebuild": false,
+    "icon": "build/icon.png",
     "files": [
+      "build/**/*",
       "dist/**/*",
       "web/dist/**/*",
       "electron/**/*",

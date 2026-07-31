@@ -1,0 +1,297 @@
+/**
+ * Fusion design tokens for Omnitunes.
+ * Combines Apple-style translucent chrome (header/player) with Emil-style
+ * tactile surfaces, precise shadows, and disciplined typography.
+ */
+
+:root {
+  /* Base shadcn tokens — warm neutral canvas, single rose accent */
+  --background: 0 0% 97%;
+  --foreground: 0 0% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 10%;
+  --primary: 346 80% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 94%;
+  --secondary-foreground: 0 0% 18%;
+  --muted: 0 0% 90%;
+  --muted-foreground: 0 0% 42%;
+  --accent: 0 0% 92%;
+  --accent-foreground: 0 0% 12%;
+  --destructive: 0 84% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 88%;
+  --input: 0 0% 90%;
+  --ring: 346 80% 55%;
+  --radius: 1rem;
+
+  /* Motion — Emil curves */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-press: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-smooth: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --duration-press: 120ms;
+  --duration-hover: 150ms;
+  --duration-enter: 220ms;
+
+  /* Glass — Apple materials */
+  --glass-bg: hsl(0 0% 100% / 0.68);
+  --glass-border: hsl(0 0% 100% / 0.45);
+  --glass-highlight: hsl(0 0% 100% / 0.55);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.dark {
+  --background: 0 0% 6%;
+  --foreground: 0 0% 94%;
+  --card: 0 0% 9%;
+  --card-foreground: 0 0% 94%;
+  --popover: 0 0% 9%;
+  --popover-foreground: 0 0% 94%;
+  --primary: 346 78% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 14%;
+  --secondary-foreground: 0 0% 90%;
+  --muted: 0 0% 16%;
+  --muted-foreground: 0 0% 58%;
+  --accent: 0 0% 16%;
+  --accent-foreground: 0 0% 96%;
+  --border: 0 0% 16%;
+  --input: 0 0% 16%;
+  --ring: 346 78% 60%;
+
+  --glass-bg: hsl(0 0% 9% / 0.72);
+  --glass-border: hsl(0 0% 100% / 0.08);
+  --glass-highlight: hsl(0 0% 100% / 0.12);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5), 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Glass chrome — Apple-style floating header / player */
+.fusion-glass {
+  position: relative;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md);
+}
+
+.fusion-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  border-top: 1px solid var(--glass-highlight);
+  opacity: 0.55;
+}
+
+.fusion-glass-strong {
+  position: relative;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(44px) saturate(200%);
+  backdrop-filter: blur(44px) saturate(200%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg);
+}
+
+.fusion-glass-strong::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  border-top: 1px solid var(--glass-highlight);
+  opacity: 0.55;
+}
+
+/* Tactile surfaces — Emil-style press feedback */
+.fusion-surface {
+  transition: transform var(--duration-press) var(--ease-press);
+  will-change: transform;
+}
+
+.fusion-surface:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.fusion-card {
+  border-radius: calc(var(--radius) + 0.25rem);
+  background: hsl(var(--card));
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-hover) var(--ease-out),
+    box-shadow var(--duration-hover) var(--ease-out);
+  will-change: transform, box-shadow;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fusion-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+}
+
+.fusion-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  transition: transform var(--duration-press) var(--ease-press),
+    background-color var(--duration-hover) var(--ease-smooth);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fusion-btn:active {
+  transform: scale(0.94);
+}
+
+.fusion-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  transition: transform var(--duration-press) var(--ease-press),
+    background-color var(--duration-hover) var(--ease-smooth),
+    color var(--duration-hover) var(--ease-smooth);
+}
+
+.fusion-icon-btn:active {
+  transform: scale(0.92);
+}
+
+.fusion-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  transition: transform var(--duration-press) var(--ease-press),
+    background-color var(--duration-hover) var(--ease-smooth),
+    color var(--duration-hover) var(--ease-smooth);
+}
+
+.fusion-pill:active {
+  transform: scale(0.96);
+}
+
+.fusion-press {
+  transition: transform var(--duration-press) var(--ease-press);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fusion-press:active {
+  transform: scale(0.96);
+}
+
+/* Progress */
+.fusion-progress-track {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: hsl(var(--muted));
+  cursor: pointer;
+}
+
+.fusion-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: hsl(var(--primary));
+  transition: width 80ms linear;
+}
+
+.fusion-progress-track:hover .fusion-progress-fill {
+  background: hsl(var(--primary) / 0.92);
+}
+
+/* Typography */
+.fusion-title {
+  font-size: 1.125rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+.fusion-body {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+}
+
+.fusion-caption {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+/* List entrance */
+.fusion-list-enter > * {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: fusion-fade-in var(--duration-enter) var(--ease-out) forwards;
+}
+
+.fusion-list-enter > *:nth-child(1) { animation-delay: 0ms; }
+.fusion-list-enter > *:nth-child(2) { animation-delay: 40ms; }
+.fusion-list-enter > *:nth-child(3) { animation-delay: 80ms; }
+.fusion-list-enter > *:nth-child(4) { animation-delay: 120ms; }
+.fusion-list-enter > *:nth-child(5) { animation-delay: 160ms; }
+.fusion-list-enter > *:nth-child(6) { animation-delay: 200ms; }
+
+@keyframes fusion-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .fusion-surface,
+  .fusion-card,
+  .fusion-btn,
+  .fusion-icon-btn,
+  .fusion-pill,
+  .fusion-press,
+  .fusion-progress-fill,
+  .fusion-list-enter > * {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .fusion-card:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .fusion-glass,
+  .fusion-glass-strong {
+    background: hsl(var(--card));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: hsl(var(--border));
+  }
+
+  .fusion-glass::before,
+  .fusion-glass-strong::before {
+    display: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .fusion-glass,
+  .fusion-glass-strong {
+    border-width: 2px;
+    border-color: hsl(var(--foreground) / 0.35);
+  }
+}

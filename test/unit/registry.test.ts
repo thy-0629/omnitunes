@@ -58,7 +58,7 @@ describe('SourceRegistry', () => {
     it('returns results and updates stats', async () => {
       registry.register(new MockAdapter());
       const hits = await registry.instrumentedSearch('mock', { query: 'test', limit: 2 });
-      expect(hits).toHaveLength(2);
+      expect(hits).toHaveLength(1);
       const desc = registry.describe();
       expect(desc[0]?.stats.totalCalls).toBe(1);
       expect(desc[0]?.stats.successRate).toBe(1);

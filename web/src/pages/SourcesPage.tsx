@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { Radio, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSourcesStore } from '@/stores/sources';
 
 const STATUS_META = {
@@ -21,33 +20,45 @@ export function SourcesPage() {
   }, [refresh]);
 
   return (
-    <div className="mx-auto max-w-3xl p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">音源状态</h1>
-        <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          刷新
-        </Button>
-      </div>
+    <div className="mx-auto max-w-2xl py-4">
+      <header className="sticky top-[4.5rem] z-30 mb-5">
+        <div className="apple-glass mx-auto flex items-center justify-between rounded-[1.75rem] p-4">
+          <div className="flex items-center gap-3">
+            <Radio className="h-5 w-5 text-muted-foreground" />
+            <h1 className="apple-typo-headline">音源状态</h1>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void refresh()}
+            disabled={loading}
+            className="apple-btn rounded-full"
+          >
+            <RefreshCw className={`mr-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            刷新
+          </Button>
+        </div>
+      </header>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         {sources.map((s) => {
           const h = health[s.id];
           const meta = h ? STATUS_META[h.status] : null;
           return (
-            <Card key={s.id}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-base">{s.displayName}</CardTitle>
+            <div key={s.id} className="apple-card p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold">{s.displayName}</h2>
                 {meta && <Badge className={meta.className}>{meta.label}</Badge>}
-              </CardHeader>
-              <CardContent className="space-y-1 text-xs text-muted-foreground">
+              </div>
+              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                 {h?.message && <div className="text-yellow-500">{h.message}</div>}
                 <div>
                   调用 {s.stats.totalCalls} 次 · 成功率 {(s.stats.successRate * 100).toFixed(0)}% · 平均{' '}
                   {s.stats.avgLatencyMs.toFixed(0)}ms
                 </div>
                 <div>
-                  能力：{[
+                  能力：
+                  {[
                     s.capabilities.search && '搜索',
                     s.capabilities.playOptions && '播放',
                     s.capabilities.health && '健康检查',
@@ -58,8 +69,8 @@ export function SourcesPage() {
                 {s.stats.lastErrorCode && (
                   <div className="text-destructive">最近错误：{s.stats.lastErrorCode}</div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           );
         })}
       </div>

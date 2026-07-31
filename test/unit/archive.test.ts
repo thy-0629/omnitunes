@@ -139,7 +139,7 @@ describe('ArchiveOrgAdapter', () => {
     const calledUrl = String(fetchMock.mock.calls[0]![0]);
     expect(calledUrl).toContain('advancedsearch.php');
     expect(calledUrl).toContain('rows=5');
-    expect(calledUrl).toContain(encodeURIComponent('scarlet AND mediatype:(audio)'));
+    expect(calledUrl).toContain(encodeURIComponent('title:("scarlet") AND mediatype:(audio)'));
   });
 
   it('getPlayOptions() returns stream options from metadata files', async () => {

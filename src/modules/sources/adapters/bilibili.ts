@@ -68,8 +68,22 @@ export class BilibiliAdapter implements SourceAdapter {
 
   async search(params: SearchParams): Promise<RawHit[]> {
     const limit = Math.max(1, Math.min(50, params.limit ?? 20));
-    const json = await this.searchOnce(params.query.trim(), limit, false);
-    return parseSearchResults(json);
+    const query = params.query.trim();
+    const json = await this.searchOnce(query, limit, false);
+    const hits = parseSearchResults(json);
+
+    const queryLower = query.toLowerCase();
+    return hits
+      .filter((hit) => {
+        const duration = hit.durationSec ?? 0;
+        if (duration < 45 || duration > 15 * 60) return false;
+        if (queryLower.length < 2) return true;
+        return hit.title.toLowerCase().includes(queryLower);
+      })
+      .map((hit) => {
+        const { title, artists } = extractMusicMeta(hit.title, hit.artists);
+        return { ...hit, title, artists };
+      });
   }
 
   async getPlayOptions(externalId: string): Promise<PlayOption[]> {
@@ -197,6 +211,70 @@ export class BilibiliAdapter implements SourceAdapter {
 // pure helpers (exported for unit tests)
 // -----------------------------------------------------------------------------
 
+/** Try to extract a cleaner title + artist from common Bilibili music-video title patterns. */
+function extractMusicMeta(rawTitle: string, author: string): { title: string; artists: string } {
+  const cleaned = stripHtmlTags(rawTitle).trim();
+
+  // pattern: 【...】歌手 - 歌名 ...
+  // pattern: 歌手 - 歌名 ...
+  const noBrackets = cleaned.replace(/^[（(〔【[{「].*?[）)〕】}\]」]\s*/, '');
+
+  // "歌手《歌名》" or "歌手&amp;歌手《歌名》"
+  const bookMatch = noBrackets.match(/^(.*?)《([^》]+)》/);
+  if (bookMatch) {
+    const artists = bookMatch[1]!.replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+    const title = bookMatch[2]!.trim();
+    if (artists && title && looksLikeArtist(artists)) {
+      return { title, artists };
+    }
+  }
+
+  // "歌手 - 歌名" or "歌名 - 歌手"
+  const dashParts = noBrackets.split(/\s*[-–—]\s+/);
+  if (dashParts.length === 2) {
+    const a = stripTrailingSuffixes(dashParts[0]!.trim());
+    const b = stripTrailingSuffixes(dashParts[1]!.trim());
+    const aIsArtist = looksLikeArtist(a);
+    const bIsArtist = looksLikeArtist(b);
+    if (aIsArtist && !bIsArtist) {
+      return { title: b, artists: a };
+    }
+    if (bIsArtist && !aIsArtist) {
+      return { title: a, artists: b };
+    }
+    // both sides look like names: default to "artist - song" (left is artist)
+    if (aIsArtist && bIsArtist) {
+      return { title: b, artists: a };
+    }
+  }
+
+  // fallback: just clean the title, keep uploader as artist
+  return { title: cleaned, artists: author || 'Unknown' };
+}
+
+function looksLikeArtist(s: string): boolean {
+  // allow CJK/Latin artist names and &/and combos
+  if (!s) return false;
+  const trimmed = s.replace(/&/g, '').replace(/\s+/g, ' ').trim();
+  if (trimmed.length < 2 || trimmed.length > 40) return false;
+  // reject pure numbers / symbols
+  if (/^[\d\s\.\-]+$/.test(trimmed)) return false;
+  // reject obvious non-artist phrases
+  if (/^第\d+集|^episode|walking|vlog|tutorial|review|reaction|cover|remix|instrumental/i.test(trimmed)) return false;
+  return true;
+}
+
+function stripTrailingSuffixes(s: string): string {
+  return s
+    .replace(/\s*(mv|pv|live|cover|instrumental|remix|acoustic|version|official|hd|4k|1080p|2160p)\s*\d*\s*$/i, '')
+    .replace(/[（(〔【[{「].*?[）)〕】}\]」]\s*$/, '')
+    .trim();
+}
+
+// -----------------------------------------------------------------------------
+// pure helpers (exported for unit tests)
+// -----------------------------------------------------------------------------
+
 interface BiliSearchResultItem {
   bvid?: unknown;
   title?: unknown;
@@ -216,13 +294,15 @@ export function parseSearchResults(json: unknown): RawHit[] {
   const hits: RawHit[] = [];
   for (const raw of result as BiliSearchResultItem[]) {
     if (typeof raw?.bvid !== 'string' || !BVID_RE.test(raw.bvid)) continue;
+    const author = typeof raw.author === 'string' && raw.author ? raw.author : 'Unknown';
+    const rawTitle = typeof raw.title === 'string' ? raw.title : raw.bvid;
     hits.push({
       externalId: raw.bvid,
-      title: stripHtmlTags(typeof raw.title === 'string' ? raw.title : raw.bvid),
-      artists: typeof raw.author === 'string' && raw.author ? raw.author : 'Unknown',
+      title: stripHtmlTags(rawTitle),
+      artists: author,
       durationSec: parseDuration(raw.duration),
       thumbnailUrl: normalizePicUrl(raw.pic),
-      publisher: 'Bilibili',
+      publisher: author,
       metadata: {
         bvid: raw.bvid,
         aid: typeof raw.aid === 'number' ? raw.aid : undefined,

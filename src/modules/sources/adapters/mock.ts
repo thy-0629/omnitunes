@@ -19,21 +19,16 @@ export class MockAdapter implements SourceAdapter {
   readonly capabilities = { search: true, playOptions: true, health: true } as const;
 
   async search(params: SearchParams): Promise<RawHit[]> {
-    const limit = clamp(params.limit ?? 5, 1, 50);
     const base = sanitizeQuery(params.query);
-    const hits: RawHit[] = [];
-    for (let i = 0; i < limit; i++) {
-      hits.push({
-        externalId: `mock-${slug(base)}-${i}`,
-        title: `${base} — Mock Take #${i + 1}`,
-        artists: 'Mock Artist',
-        durationSec: 120 + i * 17,
-        thumbnailUrl: `https://placehold.co/120x120?text=${encodeURIComponent(base)}+${i + 1}`,
-        publisher: 'Mock Records',
-        metadata: { mockIndex: i },
-      });
-    }
-    return hits;
+    return [{
+      externalId: `mock-${slug(base)}`,
+      title: `Mock result for “${base}”`,
+      artists: 'Mock Artist',
+      durationSec: 180,
+      thumbnailUrl: `https://placehold.co/120x120?text=${encodeURIComponent(base)}`,
+      publisher: 'Mock Records',
+      metadata: { mockIndex: 0 },
+    }];
   }
 
   async getPlayOptions(externalId: string): Promise<PlayOption[]> {

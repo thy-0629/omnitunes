@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { ResolvePlayResult } from '../modules/playback/orchestrator.js';
+import type { ResolvePlayResult, RankedPlayOption } from '../modules/playback/orchestrator.js';
 
 // -----------------------------------------------------------------------------
 // schemas
@@ -9,6 +9,17 @@ import type { ResolvePlayResult } from '../modules/playback/orchestrator.js';
 const addSchema = z.object({
   songWorkId: z.string().min(1),
   sourceItemId: z.string().optional(),
+  position: z.coerce.number().int().min(0).optional(),
+  songWork: z.object({
+    id: z.string(),
+    title: z.string(),
+    artists: z.string(),
+  }),
+});
+
+const moveSchema = z.object({
+  from: z.number().int().min(0),
+  to: z.number().int().min(0),
 });
 
 const nextSchema = z.object({
@@ -21,8 +32,9 @@ const nextSchema = z.object({
 // -----------------------------------------------------------------------------
 
 interface QueueNextResult {
-  queueItem: { id: string; songWorkId: string; sourceItemId?: string };
+  queueItem: { id: string; songWorkId: string; sourceItemId?: string; songWork: { id: string; title: string; artists: string } };
   resolve: ResolvePlayResult;
+  started: { playId: string; option: RankedPlayOption } | null;
 }
 
 // -----------------------------------------------------------------------------
@@ -53,14 +65,24 @@ export async function queueRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    const item = app.queue.add(parsed.data.songWorkId, parsed.data.sourceItemId);
-    app.wsHub.broadcast('queue', {
-      type: 'queue:changed',
-      action: 'add',
-      songWorkId: parsed.data.songWorkId,
-      total: app.queue.length,
-    });
-    return reply.status(201).send({ item, total: app.queue.length });
+    const { item, isDuplicate } = app.queue.add(
+      parsed.data.songWorkId,
+      parsed.data.songWork,
+      parsed.data.sourceItemId,
+      parsed.data.position,
+    );
+
+    if (!isDuplicate) {
+      app.wsHub.broadcast('queue', {
+        type: 'queue:changed',
+        action: 'add',
+        songWorkId: parsed.data.songWorkId,
+        total: app.queue.length,
+      });
+      return reply.status(201).send({ item, total: app.queue.length, duplicate: false });
+    }
+
+    return reply.status(200).send({ item, total: app.queue.length, duplicate: true });
   });
 
   // DELETE /api/queue/:position
@@ -83,6 +105,32 @@ export async function queueRoutes(app: FastifyInstance): Promise<void> {
       type: 'queue:changed',
       action: 'remove',
       position: pos,
+      total: app.queue.length,
+    });
+    return { ok: true, total: app.queue.length };
+  });
+
+  // POST /api/queue/move
+  app.post('/api/queue/move', async (req, reply) => {
+    const parsed = moveSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: { code: 'validation_error', message: parsed.error.issues[0]?.message ?? 'invalid body' },
+      });
+    }
+
+    const moved = app.queue.move(parsed.data.from, parsed.data.to);
+    if (!moved) {
+      return reply.status(400).send({
+        error: { code: 'validation_error', message: 'invalid move positions' },
+      });
+    }
+
+    app.wsHub.broadcast('queue', {
+      type: 'queue:changed',
+      action: 'move',
+      from: parsed.data.from,
+      to: parsed.data.to,
       total: app.queue.length,
     });
     return { ok: true, total: app.queue.length };
@@ -111,21 +159,29 @@ export async function queueRoutes(app: FastifyInstance): Promise<void> {
     });
 
     // optionally auto-start the best option
+    let started: { playId: string; option: RankedPlayOption } | null = null;
     if (parsed.data.autoStart !== false && resolve.best) {
       try {
-        app.playback.startPlay({
+        const startResult = await app.playback.startPlay({
           sourceItemId: resolve.best.sourceItem.id,
           optionId: resolve.best.playableOptionId,
           trigger: 'queue',
         });
+        started = { playId: startResult.playId, option: startResult.option };
       } catch {
         // autoStart failure is non-fatal — caller still gets resolve results
       }
     }
 
     const result: QueueNextResult = {
-      queueItem: { id: item.id, songWorkId: item.songWorkId, sourceItemId: item.sourceItemId },
+      queueItem: {
+        id: item.id,
+        songWorkId: item.songWorkId,
+        sourceItemId: item.sourceItemId,
+        songWork: item.songWork,
+      },
       resolve,
+      started,
     };
 
     app.wsHub.broadcast('queue', {

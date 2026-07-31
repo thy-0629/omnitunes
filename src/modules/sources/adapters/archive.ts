@@ -61,14 +61,25 @@ export class ArchiveOrgAdapter implements SourceAdapter {
 
   async search(params: SearchParams): Promise<RawHit[]> {
     const limit = Math.max(1, Math.min(50, params.limit ?? 20));
-    const q = `${params.query.trim()} AND mediatype:(audio)`;
+    const query = params.query.trim();
+    const q = `title:("${query}") AND mediatype:(audio)`;
     const url =
       `${BASE}/advancedsearch.php?q=${encodeURIComponent(q)}` +
       `&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=duration` +
       `&rows=${limit}&output=json`;
 
     const json = await this.getJson(url, 'search');
-    return parseSearchResponse(json);
+    const hits = parseSearchResponse(json);
+    if (hits.length > 0) return hits;
+
+    // fallback to fieldless query if title-scoped search returns nothing
+    const fallbackQ = `${query} AND mediatype:(audio)`;
+    const fallbackUrl =
+      `${BASE}/advancedsearch.php?q=${encodeURIComponent(fallbackQ)}` +
+      `&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=duration` +
+      `&rows=${limit}&output=json`;
+    const fallbackJson = await this.getJson(fallbackUrl, 'search');
+    return parseSearchResponse(fallbackJson);
   }
 
   async getPlayOptions(externalId: string): Promise<PlayOption[]> {

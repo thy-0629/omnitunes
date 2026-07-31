@@ -98,7 +98,23 @@ export class Normalizer {
       .get();
     if (byName) return byName;
 
-    // 3) create — better-sqlite3 RETURNING always yields the inserted row
+    // 3) title-only fallback using canonical title (handles "江南 (Live)" vs "江南")
+    const hitCanonical = canonicalTitle(title);
+    if (hitCanonical.length >= 2) {
+      const likePattern = `%${hitCanonical}%`;
+      const candidatesExisting = tx
+        .select()
+        .from(songWorks)
+        .where(sql`lower(${songWorks.title}) LIKE ${likePattern}`)
+        .all();
+      for (const candidate of candidatesExisting) {
+        if (canonicalTitle(candidate.title) === hitCanonical) {
+          return candidate;
+        }
+      }
+    }
+
+    // 4) create — better-sqlite3 RETURNING always yields the inserted row
     const created = tx
       .insert(songWorks)
       .values({
@@ -191,7 +207,78 @@ export class Normalizer {
 
 /** Lowercase + collapse whitespace. Used as a soft business key for SongWork. */
 function norm(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, ' ');
+  return normalizeBase(s);
+}
+
+/** Canonical title for matching variants of the same song. */
+export function canonicalTitle(title: string): string {
+  return titleCandidates(title)[0] ?? '';
+}
+
+/** Possible canonical titles extracted from a raw title. */
+function titleCandidates(title: string): string[] {
+  const base = normalizeBase(title);
+  const candidates = new Set<string>();
+
+  // primary: full title with brackets stripped and suffixes removed
+  const withoutBrackets = stripBracketsAndContents(base);
+  const withoutSuffixes = stripCommonSuffixes(withoutBrackets);
+  const primary = withoutSuffixes.replace(/\s+/g, ' ').trim();
+  if (primary.length >= 2) candidates.add(primary);
+
+  // content inside brackets is often the actual song title
+  for (const m of base.matchAll(/\(([^)]*)\)/g)) addCandidate(candidates, m[1]!);
+  for (const m of base.matchAll(/\[([^\]]*)\]/g)) addCandidate(candidates, m[1]!);
+  for (const m of base.matchAll(/\{([^}]*)\}/g)) addCandidate(candidates, m[1]!);
+  for (const m of base.matchAll(/（([^）]*)）/g)) addCandidate(candidates, m[1]!);
+  for (const m of base.matchAll(/【([^】]*)】/g)) addCandidate(candidates, m[1]!);
+  for (const m of base.matchAll(/〔([^〕]*)〕/g)) addCandidate(candidates, m[1]!);
+  for (const m of base.matchAll(/《([^》]+)》/g)) addCandidate(candidates, m[1]!);
+  for (const m of base.matchAll(/「([^」]+)」/g)) addCandidate(candidates, m[1]!);
+
+  // "歌手 - 歌名" / "歌手 – 歌名" / "歌手 — 歌名" -> keep both sides
+  for (const segment of base.split(/\s*[-–—]\s*/)) {
+    addCandidate(candidates, segment);
+  }
+
+  return [...candidates];
+}
+
+function addCandidate(set: Set<string>, s: string) {
+  const clean = stripCommonSuffixes(stripBracketsAndContents(s))
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (clean.length >= 2) set.add(clean);
+}
+
+function normalizeBase(s: string): string {
+  return s.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function stripBracketsAndContents(s: string): string {
+  // remove bracketed content: (..) [..] {..} （..） 【..】 〔..〕 《..》 「..」
+  return s
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/\{[^}]*\}/g, ' ')
+    .replace(/（[^）]*）/g, ' ')
+    .replace(/【[^】]*】/g, ' ')
+    .replace(/〔[^〕]*〕/g, ' ')
+    .replace(/《[^》]*》/g, ' ')
+    .replace(/「[^」]*」/g, ' ');
+}
+
+function stripCommonSuffixes(s: string): string {
+  return (
+    s
+      // common suffix keywords and everything after them
+      .replace(
+        /(\s+[-–—]|\s*[:：])?\s*(official\s*(mv|video|audio|hd)?|mv\b|pv\b|lyric(s)?\s*video|live\b|cover\b|instrumental\b|acoustic\b|remix\b|version\b|ft\.?|feat\.?|with\b|vs\.?).*$/gi,
+        ' ',
+      )
+      // stray standalone separators at end
+      .replace(/\s+[-–—]\s*$/g, ' ')
+  );
 }
 
 function extractFingerprint(hit: RawHit): string | null {

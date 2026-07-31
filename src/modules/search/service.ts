@@ -1,7 +1,14 @@
 import type { DbClient } from '../../db/client.js';
 import type { SourceRegistry } from '../sources/registry.js';
 import type { SearchParams, SourceId } from '../sources/types.js';
-import { Normalizer, type NormalizedEntry, type NormalizerInput } from './normalizer.js';
+import { Normalizer, canonicalTitle, type NormalizedEntry, type NormalizerInput } from './normalizer.js';
+
+const NOISE_ENGLISH = /\b(vlog|review|reaction|gaming|gameplay|commentary|podcast|asmr|tutorial|travel|trip|journey|tour|mock|playlist|medley|mashup|drum cover|cover by)\b/i;
+const NOISE_CHINESE = /(合集|歌单|精选|动态鼓谱|游戏|解说|纪录片|游记|旅行| tours?|vlog|reaction|review|mock)/i;
+
+function isNoiseTitle(title: string): boolean {
+  return NOISE_ENGLISH.test(title) || NOISE_CHINESE.test(title);
+}
 
 export interface UnifiedSearchParams extends SearchParams {
   /** restrict the fan-out to these sources; undefined = all search-capable adapters. */
@@ -31,6 +38,7 @@ export interface UnifiedSearchResult {
     searchedAt: number;
     sourcesQueried: SourceId[];
     latencyMs: number;
+    relevanceRanked?: boolean;
   };
 }
 
@@ -107,16 +115,75 @@ export class UnifiedSearchService {
       rec.sourceItems.push(e.sourceItem);
     }
 
+    const query = params.query.trim();
+    const queryClean = canonicalTitle(query);
+    const ranked = [...bySongWork.values()]
+      .map((group) => ({
+        group,
+        score: scoreGroup(group, query, queryClean),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((x) => x.group);
+
+    const limit = Math.max(1, params.limit ?? 20);
+    const trimmed = ranked.slice(0, limit);
+
     return {
-      query: params.query,
+      query,
       totalSongWorks: bySongWork.size,
-      results: [...bySongWork.values()],
+      results: trimmed,
       errors,
       meta: {
         searchedAt: start,
         sourcesQueried,
         latencyMs: Date.now() - start,
+        relevanceRanked: true,
       },
     };
   }
+}
+
+function scoreGroup(
+  group: SearchResultGroup,
+  query: string,
+  queryClean: string,
+): number {
+  const titleClean = canonicalTitle(group.songWork.title);
+  const titleLower = group.songWork.title.toLowerCase();
+  const queryLower = query.toLowerCase();
+  let score = 0;
+
+  if (titleClean === queryClean) {
+    score += 100;
+  } else if (titleClean.includes(queryClean) && queryClean.length >= 2) {
+    score += 60;
+  } else if (queryClean.includes(titleClean) && titleClean.length >= 2) {
+    score += 20;
+  }
+
+  // strongest signal: raw title contains the query (handles "歌手《歌名》" / "歌手 - 歌名 MV")
+  if (titleLower.includes(queryLower)) {
+    score += 80;
+  }
+
+  // distinct sources bonus, capped so playlists don't dominate real songs
+  const sources = new Set<SourceId>();
+  for (const rec of group.recordings) {
+    for (const si of rec.sourceItems) {
+      sources.add(si.source as SourceId);
+    }
+  }
+  score += Math.min(sources.size, 2) * 10;
+
+  // duration presence bonus
+  if (group.recordings.some((r) => r.recording.durationSec != null)) {
+    score += 5;
+  }
+
+  // noise penalty
+  if (isNoiseTitle(group.songWork.title)) {
+    score -= 50;
+  }
+
+  return score;
 }

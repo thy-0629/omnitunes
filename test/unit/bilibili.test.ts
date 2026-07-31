@@ -69,7 +69,7 @@ describe('parseSearchResults', () => {
       artists: '杰威尔音乐',
       durationSec: 269,
       thumbnailUrl: 'https://i0.hdslb.com/bfs/archive/abc.jpg',
-      publisher: 'Bilibili',
+      publisher: '杰威尔音乐',
     });
     expect(hits[0]!.metadata).toMatchObject({ bvid: 'BV1xx411c7mD', aid: 12345 });
   });

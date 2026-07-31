@@ -90,6 +90,7 @@ export interface StartPlayResult {
 export interface QueueItem {
   id: string;
   songWorkId: string;
+  songWork: { id: string; title: string; artists: string };
   sourceItemId?: string;
   enqueuedAt: number;
 }
@@ -97,6 +98,23 @@ export interface QueueItem {
 export interface QueueSnapshot {
   items: QueueItem[];
   total: number;
+}
+
+export interface QueueAddResult {
+  item: QueueItem;
+  total: number;
+  duplicate: boolean;
+}
+
+export interface QueueMoveResult {
+  ok: true;
+  total: number;
+}
+
+export interface QueueNextResult {
+  queueItem: QueueItem;
+  resolve: ResolvePlayResult;
+  started: StartPlayResult | null;
 }
 
 export interface HistoryEntry {

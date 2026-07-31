@@ -17,6 +17,10 @@ export function AudioPlayer() {
   const option = usePlayerStore((s) => s.option);
   const playId = usePlayerStore((s) => s.playId);
   const status = usePlayerStore((s) => s.status);
+  const isPaused = usePlayerStore((s) => s.isPaused);
+  const volume = usePlayerStore((s) => s.volume);
+  const isMuted = usePlayerStore((s) => s.isMuted);
+  const seekRatio = usePlayerStore((s) => s.seekRatio);
   const lastReportRef = useRef(0);
 
   const url = currentAudioUrl(option);
@@ -28,14 +32,33 @@ export function AudioPlayer() {
       if (audio.src !== new URL(url, window.location.origin).toString()) {
         audio.src = url;
       }
-      void audio.play().catch(() => {
-        // autoplay blocked or load failure — let the error handler deal with it
-      });
+      if (isPaused) {
+        audio.pause();
+      } else {
+        void audio.play().catch(() => {
+          // autoplay blocked — surface by pausing so user can click play again
+          usePlayerStore.getState().togglePause();
+        });
+      }
     } else {
       audio.pause();
       if (!url) audio.removeAttribute('src');
     }
-  }, [url, status]);
+  }, [url, status, isPaused]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = volume;
+    audio.muted = isMuted;
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || seekRatio == null || !Number.isFinite(audio.duration)) return;
+    audio.currentTime = seekRatio * audio.duration;
+    usePlayerStore.getState().consumeSeek();
+  }, [seekRatio]);
 
   if (!option || option.option.type === 'embed') return null;
 

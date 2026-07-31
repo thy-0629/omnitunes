@@ -1,0 +1,194 @@
+/*
+ * Emil Kowalski-style design tokens for Omnitunes prototypes.
+ * Invisible details: custom easing, tactile press feedback, precise shadows,
+ * and transform/opacity-only motion. Import once at the preview route root.
+ */
+
+/* Motion: strong, responsive curves */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-press: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Durations */
+  --duration-press: 120ms;
+  --duration-hover: 150ms;
+  --duration-popover: 180ms;
+  --duration-enter: 220ms;
+
+  /* Shape */
+  --radius-pill: 9999px;
+  --radius-card: 16px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
+
+  /*
+   * Shadows: layered, soft, no glass.
+   * The first layer provides crisp contact, the second provides ambient lift.
+   */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-player: 0 -1px 0 rgba(0, 0, 0, 0.04), 0 -4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-thumb: 0 1px 2px rgba(0, 0, 0, 0.12);
+
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+  --tracking-tight: -0.01em;
+  --tracking-ui: 0;
+}
+
+.dark {
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.15);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.2);
+  --shadow-player: 0 -1px 0 rgba(255, 255, 255, 0.04), 0 -4px 24px rgba(0, 0, 0, 0.25);
+  --shadow-thumb: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* Pressable surfaces: instant tactile feedback */
+.emil-surface {
+  transition: transform var(--duration-press) var(--ease-press);
+  will-change: transform;
+}
+
+.emil-surface:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Cards: subtle lift on hover, never glass */
+.emil-card {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  transition: transform var(--duration-hover) var(--ease-out),
+    box-shadow var(--duration-hover) var(--ease-out),
+    background-color var(--duration-hover) var(--ease-out);
+  will-change: transform, box-shadow;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .emil-card:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
+  }
+}
+
+/* Pills: primary toggle/filter shape */
+.emil-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  padding: 0.375rem 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  letter-spacing: var(--tracking-ui);
+  transition: transform var(--duration-press) var(--ease-press),
+    background-color var(--duration-hover) var(--ease-out),
+    color var(--duration-hover) var(--ease-out), box-shadow var(--duration-hover) var(--ease-out);
+  will-change: transform;
+}
+
+.emil-pill:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Ghost icon buttons */
+.emil-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  transition: transform var(--duration-press) var(--ease-press),
+    background-color var(--duration-hover) var(--ease-out), color var(--duration-hover) var(--ease-out);
+  will-change: transform;
+}
+
+.emil-icon-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+/* Progress: immediate, no layout animation */
+.emil-progress-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background-color: hsl(var(--muted));
+}
+
+.emil-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background-color: hsl(var(--primary));
+  transition: width 80ms linear;
+}
+
+.emil-progress-thumb {
+  position: absolute;
+  top: 50%;
+  left: var(--thumb-left, 0%);
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, -50%) scale(0.6);
+  border-radius: var(--radius-pill);
+  background-color: hsl(var(--primary));
+  box-shadow: var(--shadow-thumb);
+  opacity: 0;
+  transition: opacity var(--duration-hover) var(--ease-out),
+    transform var(--duration-hover) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .emil-progress-track:hover .emil-progress-thumb {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Staggered list entrances */
+.emil-list-enter > * {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: emil-fade-in var(--duration-enter) var(--ease-out) forwards;
+}
+
+.emil-list-enter > *:nth-child(1) { animation-delay: 0ms; }
+.emil-list-enter > *:nth-child(2) { animation-delay: 40ms; }
+.emil-list-enter > *:nth-child(3) { animation-delay: 80ms; }
+.emil-list-enter > *:nth-child(4) { animation-delay: 120ms; }
+.emil-list-enter > *:nth-child(5) { animation-delay: 160ms; }
+.emil-list-enter > *:nth-child(6) { animation-delay: 200ms; }
+.emil-list-enter > *:nth-child(7) { animation-delay: 240ms; }
+.emil-list-enter > *:nth-child(8) { animation-delay: 280ms; }
+
+@keyframes emil-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reduced motion: keep state changes, drop movement */
+@media (prefers-reduced-motion: reduce) {
+  .emil-surface,
+  .emil-card,
+  .emil-pill,
+  .emil-icon-btn,
+  .emil-progress-thumb,
+  .emil-progress-fill {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+
+  .emil-card:hover {
+    transform: none;
+  }
+}

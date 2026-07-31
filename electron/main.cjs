@@ -162,6 +162,7 @@ async function createWindow() {
     minHeight: 600,
     autoHideMenuBar: true,
     backgroundColor: '#0a0a0f',
+    icon: path.join(__dirname, '..', 'build', 'icon.png'),
     webPreferences: {
       // The frontend only talks to our own backend — keep the session isolated.
       contextIsolation: true,

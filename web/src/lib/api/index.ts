@@ -5,6 +5,9 @@ import type {
   HistoryEntry,
   Playlist,
   PlaylistItem,
+  QueueAddResult,
+  QueueMoveResult,
+  QueueNextResult,
   QueueSnapshot,
   ResolvePlayResult,
   SourceDescription,
@@ -48,12 +51,22 @@ export const localStreamUrl = (sourceItemId: string) => `/api/local/stream/${sou
 
 // --- queue ---
 export const getQueue = () => api<QueueSnapshot>('/api/queue');
-export const addToQueue = (songWorkId: string, sourceItemId?: string) =>
-  api<{ item: unknown; total: number }>('/api/queue', { method: 'POST', body: { songWorkId, sourceItemId } });
+export const addToQueue = (
+  songWorkId: string,
+  songWork: { id: string; title: string; artists: string },
+  sourceItemId?: string,
+  position?: number,
+) =>
+  api<QueueAddResult>('/api/queue', {
+    method: 'POST',
+    body: { songWorkId, songWork, sourceItemId, position },
+  });
 export const removeFromQueue = (position: number) =>
   api<{ ok: true; total: number }>(`/api/queue/${position}`, { method: 'DELETE' });
+export const moveQueueItem = (from: number, to: number) =>
+  api<QueueMoveResult>('/api/queue/move', { method: 'POST', body: { from, to } });
 export const nextInQueue = (autoStart = true) =>
-  api<{ queueItem: unknown; resolve: ResolvePlayResult }>('/api/queue/next', {
+  api<QueueNextResult>('/api/queue/next', {
     method: 'POST',
     body: { autoStart },
   });

@@ -1,0 +1,244 @@
+/**
+ * Apple-style design tokens for the Omnitunes prototype.
+ * Drop this file into any route and wrap the page with `.apple-theme`.
+ * Variables mirror the Shadcn/Tailwind token surface so standard utility classes
+ * pick up the new palette automatically.
+ */
+
+/* Light mode — warm neutral canvas with a single disciplined accent */
+.apple-theme {
+  --background: 0 0% 96%;
+  --foreground: 0 0% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 10%;
+  --primary: 346 85% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 94%;
+  --secondary-foreground: 0 0% 18%;
+  --muted: 0 0% 90%;
+  --muted-foreground: 0 0% 42%;
+  --accent: 0 0% 92%;
+  --accent-foreground: 0 0% 12%;
+  --destructive: 0 84% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 86%;
+  --input: 0 0% 88%;
+  --ring: 346 85% 55%;
+  --radius: 1rem;
+
+  /* Apple-specific material tokens */
+  --apple-tint: 346 85% 55%;
+  --apple-glass-bg: hsl(0 0% 100% / 0.62);
+  --apple-glass-border: hsl(0 0% 100% / 0.45);
+  --apple-glass-highlight: hsl(0 0% 100% / 0.55);
+  --apple-shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.04), 0 1px 3px hsl(0 0% 0% / 0.06);
+  --apple-shadow-md: 0 4px 12px hsl(0 0% 0% / 0.06), 0 2px 4px hsl(0 0% 0% / 0.04);
+  --apple-shadow-lg: 0 12px 40px hsl(0 0% 0% / 0.1), 0 4px 12px hsl(0 0% 0% / 0.05);
+  --apple-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --apple-smooth: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.apple-theme.dark {
+  --background: 0 0% 6%;
+  --foreground: 0 0% 94%;
+  --card: 0 0% 9%;
+  --card-foreground: 0 0% 94%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 346 80% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 14%;
+  --secondary-foreground: 0 0% 90%;
+  --muted: 0 0% 16%;
+  --muted-foreground: 0 0% 58%;
+  --accent: 0 0% 16%;
+  --accent-foreground: 0 0% 96%;
+  --destructive: 0 70% 52%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 16%;
+  --input: 0 0% 16%;
+  --ring: 346 80% 60%;
+
+  --apple-glass-bg: hsl(0 0% 9% / 0.72);
+  --apple-glass-border: hsl(0 0% 100% / 0.08);
+  --apple-glass-highlight: hsl(0 0% 100% / 0.12);
+  --apple-shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.4), 0 1px 3px hsl(0 0% 0% / 0.3);
+  --apple-shadow-md: 0 4px 16px hsl(0 0% 0% / 0.45), 0 2px 6px hsl(0 0% 0% / 0.3);
+  --apple-shadow-lg: 0 16px 48px hsl(0 0% 0% / 0.55), 0 6px 16px hsl(0 0% 0% / 0.35);
+}
+
+.apple-glass {
+  background: var(--apple-glass-bg);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--apple-glass-border);
+  box-shadow: var(--apple-shadow-md);
+}
+
+.apple-glass-strong {
+  background: var(--apple-glass-bg);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid var(--apple-glass-border);
+  box-shadow: var(--apple-shadow-lg);
+}
+
+/* Material edge highlight */
+.apple-glass::before,
+.apple-glass-strong::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  border-top: 1px solid var(--apple-glass-highlight);
+  opacity: 0.6;
+}
+
+.apple-pill {
+  border-radius: 9999px;
+}
+
+.apple-card {
+  border-radius: calc(var(--radius) + 0.25rem);
+  background: hsl(var(--card));
+  box-shadow: var(--apple-shadow-sm);
+  transition: transform 180ms var(--apple-smooth), box-shadow 180ms var(--apple-smooth);
+}
+
+.apple-card-interactive {
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.apple-card-interactive:hover {
+  transform: translateY(-1px) scale(1.002);
+  box-shadow: var(--apple-shadow-md);
+}
+
+.apple-card-interactive:active {
+  transform: scale(0.985);
+  transition-duration: 80ms;
+}
+
+.apple-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  transition: transform 160ms var(--apple-spring), background-color 160ms var(--apple-smooth);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.apple-btn:active {
+  transform: scale(0.94);
+  transition-duration: 80ms;
+}
+
+.apple-press {
+  transition: transform 140ms var(--apple-spring);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.apple-press:active {
+  transform: scale(0.96);
+}
+
+.apple-progress-track {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: hsl(var(--muted));
+  cursor: pointer;
+}
+
+.apple-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: hsl(var(--primary));
+  transform-origin: left;
+  transition: width 80ms linear;
+}
+
+.apple-progress-track:hover .apple-progress-fill,
+.apple-progress-track:focus-within .apple-progress-fill {
+  background: hsl(var(--primary) / 0.92);
+}
+
+.apple-typo-display {
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.apple-typo-headline {
+  font-size: 1.125rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+.apple-typo-body {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+}
+
+.apple-typo-caption {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  letter-spacing: 0.005em;
+}
+
+/* Edge fade for content scrolling under glass chrome */
+.apple-edge-fade {
+  mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+}
+
+.apple-duration-fast { transition-duration: 120ms; }
+.apple-duration-normal { transition-duration: 240ms; }
+.apple-duration-slow { transition-duration: 420ms; }
+.apple-ease-spring { transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+.apple-ease-smooth { transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1); }
+
+/* Accessibility: respect system motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .apple-card,
+  .apple-card-interactive,
+  .apple-btn,
+  .apple-press,
+  .apple-progress-fill {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .apple-glass,
+  .apple-glass-strong {
+    background: hsl(var(--card));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: hsl(var(--border));
+  }
+
+  .apple-glass::before,
+  .apple-glass-strong::before {
+    display: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .apple-glass,
+  .apple-glass-strong {
+    border-width: 2px;
+    border-color: hsl(var(--foreground) / 0.35);
+  }
+}
