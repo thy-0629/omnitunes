@@ -42,7 +42,7 @@ const router = createBrowserRouter([
   {
     path: '/prototypes/apple',
     element: (
-      <div className="min-h-screen bg-background">
+      <div className="apple-theme min-h-screen bg-background">
         <AppleSearchPage />
         <ApplePlayerBar />
       </div>
@@ -51,7 +51,7 @@ const router = createBrowserRouter([
   {
     path: '/prototypes/apple-queue',
     element: (
-      <div className="min-h-screen bg-background">
+      <div className="apple-theme min-h-screen bg-background">
         <AppleQueuePage />
         <ApplePlayerBar />
       </div>
@@ -60,7 +60,7 @@ const router = createBrowserRouter([
   {
     path: '/prototypes/emil',
     element: (
-      <div className="min-h-screen bg-background">
+      <div className="emil-theme min-h-screen bg-background">
         <EmilSearchPage />
         <EmilPlayerBar />
       </div>
@@ -69,7 +69,7 @@ const router = createBrowserRouter([
   {
     path: '/prototypes/emil-queue',
     element: (
-      <div className="min-h-screen bg-background">
+      <div className="emil-theme min-h-screen bg-background">
         <EmilQueuePage />
         <EmilPlayerBar />
       </div>
@@ -78,7 +78,7 @@ const router = createBrowserRouter([
   {
     path: '/prototypes/fusion',
     element: (
-      <div className="min-h-screen bg-background">
+      <div className="fusion-theme min-h-screen bg-background">
         <FusionSearchPage />
         <FusionPlayerBar />
       </div>
@@ -87,7 +87,7 @@ const router = createBrowserRouter([
   {
     path: '/prototypes/fusion-queue',
     element: (
-      <div className="min-h-screen bg-background">
+      <div className="fusion-theme min-h-screen bg-background">
         <FusionQueuePage />
         <FusionPlayerBar />
       </div>

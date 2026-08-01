@@ -4,7 +4,7 @@
  * tactile surfaces, precise shadows, and disciplined typography.
  */
 
-:root {
+.fusion-theme {
   /* Base shadcn tokens — warm neutral canvas, single rose accent */
   --background: 0 0% 97%;
   --foreground: 0 0% 10%;
@@ -44,7 +44,7 @@
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.dark {
+.fusion-theme.dark {
   --background: 0 0% 6%;
   --foreground: 0 0% 94%;
   --card: 0 0% 9%;

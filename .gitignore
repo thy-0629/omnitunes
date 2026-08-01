@@ -31,3 +31,6 @@ data/
 
 # electron-builder output
 release/
+
+# local visual brainstorming artifacts
+.superpowers/

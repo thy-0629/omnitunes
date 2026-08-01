@@ -4,56 +4,154 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --background: 0 0% 96%;
+    --foreground: 0 0% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 0 0% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 262 83% 58%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 262 83% 58%;
-    --radius: 0.5rem;
+    --popover-foreground: 0 0% 10%;
+    --primary: 346 85% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 94%;
+    --secondary-foreground: 0 0% 18%;
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 42%;
+    --accent: 0 0% 92%;
+    --accent-foreground: 0 0% 12%;
+    --destructive: 0 84% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 86%;
+    --input: 0 0% 88%;
+    --ring: 346 85% 55%;
+    --radius: 1rem;
   }
 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 5.5%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 263 70% 66%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 50.6%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 263 70% 66%;
+  [data-theme='apple'] {
+    --background: 0 0% 96%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 346 85% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 94%;
+    --secondary-foreground: 0 0% 18%;
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 42%;
+    --accent: 0 0% 92%;
+    --accent-foreground: 0 0% 12%;
+    --destructive: 0 84% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 86%;
+    --input: 0 0% 88%;
+    --ring: 346 85% 55%;
+    --radius: 1rem;
+    --apple-glass-bg: hsl(0 0% 100% / 0.62);
+    --apple-glass-border: hsl(0 0% 100% / 0.45);
+    --apple-glass-highlight: hsl(0 0% 100% / 0.55);
+    --apple-shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.04), 0 1px 3px hsl(0 0% 0% / 0.06);
+    --apple-shadow-md: 0 4px 12px hsl(0 0% 0% / 0.06), 0 2px 4px hsl(0 0% 0% / 0.04);
+    --apple-shadow-lg: 0 12px 40px hsl(0 0% 0% / 0.1), 0 4px 12px hsl(0 0% 0% / 0.05);
+    --apple-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --apple-smooth: cubic-bezier(0.22, 0.61, 0.36, 1);
   }
-}
 
-@layer base {
+  [data-theme='emil'] {
+    --background: 120 5% 7%;
+    --foreground: 90 20% 95%;
+    --card: 120 7% 12%;
+    --card-foreground: 90 20% 95%;
+    --popover: 120 7% 12%;
+    --popover-foreground: 90 20% 95%;
+    --primary: 76 100% 63%;
+    --primary-foreground: 96 100% 8%;
+    --secondary: 120 5% 17%;
+    --secondary-foreground: 90 20% 95%;
+    --muted: 120 5% 17%;
+    --muted-foreground: 100 9% 66%;
+    --accent: 85 17% 20%;
+    --accent-foreground: 90 20% 95%;
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 120 7% 21%;
+    --input: 120 7% 21%;
+    --ring: 76 100% 63%;
+    --radius: 0.625rem;
+    --apple-glass-bg: hsl(120 7% 12% / 0.98);
+    --apple-glass-border: hsl(90 20% 95% / 0.1);
+    --apple-glass-highlight: hsl(90 20% 95% / 0.08);
+    --apple-shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.32);
+    --apple-shadow-md: 0 4px 12px hsl(0 0% 0% / 0.38), 0 1px 3px hsl(0 0% 0% / 0.26);
+    --apple-shadow-lg: 0 12px 32px hsl(0 0% 0% / 0.48), 0 4px 12px hsl(0 0% 0% / 0.3);
+    --apple-spring: cubic-bezier(0.23, 1, 0.32, 1);
+    --apple-smooth: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  [data-theme='fusion'] {
+    --background: 228 42% 11%;
+    --foreground: 226 40% 96%;
+    --card: 228 35% 16%;
+    --card-foreground: 226 40% 96%;
+    --popover: 228 35% 15%;
+    --popover-foreground: 226 40% 96%;
+    --primary: 196 100% 74%;
+    --primary-foreground: 228 49% 17%;
+    --secondary: 228 27% 23%;
+    --secondary-foreground: 226 40% 96%;
+    --muted: 228 27% 23%;
+    --muted-foreground: 224 25% 72%;
+    --accent: 255 41% 29%;
+    --accent-foreground: 226 40% 96%;
+    --destructive: 0 75% 63%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 227 29% 30%;
+    --input: 227 29% 30%;
+    --ring: 196 100% 74%;
+    --radius: 0.875rem;
+    --apple-glass-bg: hsl(228 38% 16% / 0.76);
+    --apple-glass-border: hsl(219 100% 88% / 0.16);
+    --apple-glass-highlight: hsl(219 100% 88% / 0.16);
+    --apple-shadow-sm: 0 1px 2px hsl(230 70% 4% / 0.32), 0 1px 3px hsl(230 70% 4% / 0.25);
+    --apple-shadow-md: 0 6px 18px hsl(230 70% 4% / 0.42), 0 2px 6px hsl(230 70% 4% / 0.28);
+    --apple-shadow-lg: 0 18px 44px hsl(230 70% 4% / 0.56), 0 6px 18px hsl(230 70% 4% / 0.34);
+    --apple-spring: cubic-bezier(0.23, 1, 0.32, 1);
+    --apple-smooth: cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme] *,
+  [data-theme] *::before,
+  [data-theme] *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme] .apple-glass,
+  [data-theme] .apple-glass-strong {
+    background: hsl(var(--card));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: hsl(var(--border));
+  }
+}
+
+@media (prefers-contrast: more) {
+  [data-theme] .apple-glass,
+  [data-theme] .apple-glass-strong {
+    border-width: 2px;
+    border-color: hsl(var(--foreground) / 0.42);
   }
 }

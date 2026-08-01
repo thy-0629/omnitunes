@@ -6,7 +6,9 @@ import { wsClient } from '@/lib/ws';
 import { PlayerBar } from '@/components/player/PlayerBar';
 import { AudioPlayer } from '@/components/player/AudioPlayer';
 import { EmbedPlayer } from '@/components/player/EmbedPlayer';
+import { ThemeSelector } from '@/components/ThemeSelector';
 import { useQueueStore } from '@/stores/queue';
+import { useThemeStore } from '@/stores/theme';
 
 const NAV = [
   { to: '/', label: '搜索', icon: Search },
@@ -18,6 +20,8 @@ const NAV = [
 ];
 
 export function AppShell() {
+  const theme = useThemeStore((state) => state.theme);
+
   useEffect(() => {
     wsClient.start();
     void useQueueStore.getState().refresh();
@@ -30,7 +34,7 @@ export function AppShell() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div data-testid="app-shell" data-theme={theme} className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="sticky top-0 z-40 px-4 py-3">
         <div className="apple-glass-strong mx-auto flex max-w-5xl items-center gap-3 rounded-full px-4 py-2">
           <Disc3 className="h-5 w-5 text-primary" />
@@ -55,6 +59,7 @@ export function AppShell() {
               </NavLink>
             ))}
           </nav>
+          <ThemeSelector />
         </div>
       </header>
 
