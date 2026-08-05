@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Heart, ListPlus, MoreHorizontal, Music, Play, Search, SkipForward, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlaylistPicker } from '@/components/PlaylistPicker';
+import { SourceAttribution } from '@/components/SourceAttribution';
 import { useSearchStore } from '@/stores/search';
 import { usePlayerStore } from '@/stores/player';
 import { useQueueStore } from '@/stores/queue';
@@ -13,6 +14,8 @@ import type { SearchResultGroup, SourceId, SourceItem } from '@/lib/api/types';
 const SOURCE_FILTERS: Array<{ id: SourceId; label: string }> = [
   { id: 'bilibili', label: 'B站' },
   { id: 'open_source', label: 'Archive' },
+  { id: 'openverse', label: 'Openverse' },
+  { id: 'wikimedia', label: 'Commons' },
   { id: 'local', label: '本地' },
 ];
 
@@ -113,7 +116,7 @@ export function SearchPage() {
             )}
           </form>
 
-          <div className="flex items-center gap-2 px-1">
+          <div className="flex flex-wrap items-center gap-2 px-1">
             <span className="text-xs font-medium text-muted-foreground">音源</span>
             {SOURCE_FILTERS.map(({ id, label }) => {
               const active = sources === undefined || sources.includes(id);
@@ -164,9 +167,7 @@ export function SearchPage() {
 
           {!loading && result && results.length === 0 && (
             <div className="apple-card py-12 text-center">
-              <p className="text-sm text-muted-foreground">
-                没有找到「{result.query}」相关的结果
-              </p>
+              <p className="text-sm text-muted-foreground">未找到可播放版本</p>
               <p className="mt-1 text-xs text-muted-foreground">可以尝试简化关键词，或切换音源后重试</p>
             </div>
           )}
@@ -288,6 +289,7 @@ export function SearchPage() {
                                 </span>
                               </span>
                             </button>
+                            <SourceAttribution attribution={si.attributionMetadata} />
                             <button
                               type="button"
                               className="apple-btn rounded-full p-1.5 text-muted-foreground hover:text-foreground"

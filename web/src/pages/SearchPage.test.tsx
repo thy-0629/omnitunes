@@ -183,4 +183,44 @@ describe('SearchPage', () => {
     expect(within(sourceRow).getByText('晴天 官方MV · 未知艺术家')).toBeVisible();
     expect(within(sourceRow).getByText('某UP主 · B站 · 4:29')).toBeVisible();
   });
+  it('keeps Openverse and Commons filters independently selectable', () => {
+    render(<SearchPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Openverse' }));
+    expect(useSearchStore.getState().sources).toEqual(['openverse']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Commons' }));
+    expect(useSearchStore.getState().sources).toEqual(['openverse', 'wikimedia']);
+  });
+
+  it('wraps source filters on narrow screens instead of overflowing', () => {
+    render(<SearchPage />);
+
+    expect(screen.getByRole('button', { name: 'Openverse' }).parentElement).toHaveClass('flex-wrap');
+  });
+
+  it('keeps results from available sources when another source reports an error', () => {
+    useSearchStore.setState({
+      result: {
+        ...searchResult,
+        errors: [{ source: 'openverse', code: 'UPSTREAM_UNAVAILABLE', message: 'Openverse unavailable' }],
+      },
+    });
+
+    render(<SearchPage />);
+
+    expect(screen.getByText(/Openverse unavailable/)).toBeVisible();
+    expect(screen.getByRole('button', { name: /杰威尔音乐.*B站.*4:29/ })).toBeVisible();
+  });
+
+  it('shows the verified-playable empty state only after a completed zero-result search', () => {
+    useSearchStore.setState({
+      result: { ...searchResult, results: [] },
+      loading: false,
+    });
+
+    render(<SearchPage />);
+
+    expect(screen.getByText('未找到可播放版本')).toBeVisible();
+  });
 });

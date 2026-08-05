@@ -57,6 +57,11 @@ export function SourcesPage() {
                   {s.stats.avgLatencyMs.toFixed(0)}ms
                 </div>
                 <div>
+                  {s.stats.playabilitySuccessRate == null
+                    ? '尚无可播放验证'
+                    : `可播放验证 ${Math.round(s.stats.playabilitySuccessRate * 100)}%`}
+                </div>
+                <div>
                   能力：
                   {[
                     s.capabilities.search && '搜索',
