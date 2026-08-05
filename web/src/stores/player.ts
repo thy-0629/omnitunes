@@ -10,6 +10,8 @@ import {
 import type { QueueItem, RankedPlayOption, SongWork } from '@/lib/api/types';
 import { useQueueStore } from './queue';
 
+let playbackRequestGeneration = 0;
+
 export type PlayerStatus = 'idle' | 'resolving' | 'playing' | 'error';
 
 interface PlayerState {
@@ -77,6 +79,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   videoVisible: true,
 
   playSourceItem: async (sourceItemId, songWork, optionId) => {
+    const requestGeneration = ++playbackRequestGeneration;
     set({
       status: 'resolving',
       error: null,
@@ -87,6 +90,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     });
     try {
       const { playId, option } = await startPlay({ sourceItemId, optionId });
+      if (requestGeneration !== playbackRequestGeneration) return;
       set({
         playId,
         option,
@@ -97,6 +101,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         videoVisible: true,
       });
     } catch (err) {
+      if (requestGeneration !== playbackRequestGeneration) return;
       set({
         status: 'error',
         error: err instanceof Error ? err.message : String(err),
@@ -106,6 +111,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   },
 
   playSongWork: async (songWork) => {
+    const requestGeneration = ++playbackRequestGeneration;
     set({
       status: 'resolving',
       error: null,
@@ -116,6 +122,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     });
     try {
       const resolved = await resolvePlay({ songWorkId: songWork.id });
+      if (requestGeneration !== playbackRequestGeneration) return;
       if (!resolved.best) {
         set({ status: 'error', error: '没有可用的播放来源' });
         return;
@@ -124,6 +131,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         sourceItemId: resolved.best.sourceItem.id,
         optionId: resolved.best.playableOptionId,
       });
+      if (requestGeneration !== playbackRequestGeneration) return;
       set({
         playId,
         option,
@@ -134,11 +142,13 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         videoVisible: true,
       });
     } catch (err) {
+      if (requestGeneration !== playbackRequestGeneration) return;
       set({ status: 'error', error: err instanceof Error ? err.message : String(err) });
     }
   },
 
   playQueueItem: async (item) => {
+    const requestGeneration = ++playbackRequestGeneration;
     set({
       status: 'resolving',
       error: null,
@@ -150,6 +160,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     try {
       if (item.sourceItemId) {
         const { playId, option } = await startPlay({ sourceItemId: item.sourceItemId });
+        if (requestGeneration !== playbackRequestGeneration) return;
         set({
           playId,
           option,
@@ -161,6 +172,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         });
       } else {
         const resolved = await resolvePlay({ songWorkId: item.songWorkId });
+        if (requestGeneration !== playbackRequestGeneration) return;
         if (!resolved.best) {
           set({ status: 'error', error: '没有可用的播放来源' });
           return;
@@ -169,6 +181,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
           sourceItemId: resolved.best.sourceItem.id,
           optionId: resolved.best.playableOptionId,
         });
+        if (requestGeneration !== playbackRequestGeneration) return;
         set({
           playId,
           option,
@@ -180,6 +193,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         });
       }
     } catch (err) {
+      if (requestGeneration !== playbackRequestGeneration) return;
       set({ status: 'error', error: err instanceof Error ? err.message : String(err) });
     }
   },
@@ -198,9 +212,11 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   tryFallback: async (reason) => {
     const { playId } = get();
     if (!playId) return;
+    const requestGeneration = ++playbackRequestGeneration;
     set({ status: 'resolving', error: null, failedSourceItemId: null, isPaused: false });
     try {
       const res = await fallbackPlay(playId, reason);
+      if (requestGeneration !== playbackRequestGeneration) return;
       set({
         playId: res.playId,
         option: res.option,
@@ -210,14 +226,17 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         videoVisible: true,
       });
     } catch (err) {
+      if (requestGeneration !== playbackRequestGeneration) return;
       set({ status: 'error', error: `换源失败：${err instanceof Error ? err.message : String(err)}` });
     }
   },
 
   playNextFromQueue: async () => {
+    const requestGeneration = ++playbackRequestGeneration;
     set({ error: null, failedSourceItemId: null });
     try {
       const result = await nextInQueue(true);
+      if (requestGeneration !== playbackRequestGeneration) return;
       const { queueItem, started } = result;
       if (started) {
         set({
@@ -242,6 +261,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       }
       useQueueStore.getState().refresh();
     } catch {
+      if (requestGeneration !== playbackRequestGeneration) return;
       // queue empty — fine, just stop
       get().reset();
     }
@@ -267,7 +287,8 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 
   showVideo: () => set({ videoVisible: true }),
 
-  reset: () =>
+  reset: () => {
+    playbackRequestGeneration += 1;
     set({
       playId: null,
       option: null,
@@ -281,5 +302,6 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       isPaused: false,
       seekRatio: null,
       videoVisible: true,
-    }),
+    });
+  },
 }));

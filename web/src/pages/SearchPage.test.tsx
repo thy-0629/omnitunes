@@ -214,6 +214,31 @@ describe('SearchPage', () => {
     expect(screen.queryByText('Song-level failure')).not.toBeInTheDocument();
   });
 
+  it('ignores a stale source failure after a newer song-level failure', async () => {
+    let rejectSourceStart!: (reason?: unknown) => void;
+    vi.mocked(startPlay).mockImplementationOnce(
+      () => new Promise((_, reject) => { rejectSourceStart = reject; }),
+    );
+
+    const staleSourceAttempt = usePlayerStore.getState().playSourceItem(
+      'source-1',
+      searchResult.results[0]!.songWork,
+    );
+    vi.mocked(resolvePlay).mockRejectedValue(new Error('Song-level failure'));
+    await usePlayerStore.getState().playSongWork(searchResult.results[0]!.songWork);
+    rejectSourceStart(new Error('Stale source failure'));
+    await staleSourceAttempt;
+
+    render(<SearchPage />);
+
+    expect(usePlayerStore.getState()).toMatchObject({
+      error: 'Song-level failure',
+      failedSourceItemId: null,
+    });
+    expect(screen.queryByText('Stale source failure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Song-level failure')).not.toBeInTheDocument();
+  });
+
   it('shows an unknown artist separately from the Bilibili uploader', () => {
     useSearchStore.setState({
       result: {
