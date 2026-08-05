@@ -370,25 +370,30 @@ export class PlaybackOrchestrator {
     }
 
     const failedSource = failedSourceItem.source as SourceId;
-    let failedOptions: PlayOption[] = [];
+    const persistedFailedOptions = this.db
+      .select()
+      .from(playableOptions)
+      .where(eq(playableOptions.sourceItemId, failedSourceItem.id))
+      .all()
+      .map((option) => ({
+        type: option.type as PlayOptionType,
+        payload: option.payload,
+        expiresAt: option.expiresAt,
+      }));
+    let freshFailedOptions: PlayOption[] = [];
     try {
-      failedOptions = await this.registry.instrumentedPlayOptions(
+      freshFailedOptions = await this.registry.instrumentedPlayOptions(
         failedSource,
         failedSourceItem.externalId,
       );
     } catch {
-      failedOptions = this.db
-        .select()
-        .from(playableOptions)
-        .where(eq(playableOptions.sourceItemId, failedSourceItem.id))
-        .all()
-        .map((option) => ({
-          type: option.type as PlayOptionType,
-          payload: option.payload,
-          expiresAt: option.expiresAt,
-        }));
+      // Persisted options still identify the failed playback when refreshing
+      // the adapter's signed URL is itself unavailable.
     }
-    this.verifier.markUnavailable(failedSource, failedOptions);
+    this.verifier.markUnavailable(
+      failedSource,
+      [...freshFailedOptions, ...persistedFailedOptions],
+    );
     this.registry.recordPlayability(failedSource, false);
     this.db
       .update(playableOptions)

@@ -132,7 +132,14 @@ export class CachedPlaybackOrchestrator {
     return this.inner.endPlay(...args);
   }
 
-  fallback(...args: Parameters<PlaybackOrchestrator['fallback']>) {
-    return this.inner.fallback(...args);
+  async fallback(...args: Parameters<PlaybackOrchestrator['fallback']>) {
+    try {
+      return await this.inner.fallback(...args);
+    } finally {
+      // A runtime playback failure changes verifier and persisted availability
+      // state. Drop cached resolve results even when no alternate is found so
+      // the failed option cannot be re-emitted by this wrapper.
+      this.cache.clear();
+    }
   }
 }

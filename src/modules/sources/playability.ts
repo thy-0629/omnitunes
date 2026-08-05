@@ -5,6 +5,7 @@ export interface PlayabilityVerifierOptions {
   timeoutMs?: number;
   successTtlMs?: number;
   failureTtlMs?: number;
+  /** Retained for configuration compatibility; bodies are cancelled, never read. */
   maxBodyBytes?: number;
 }
 
@@ -25,7 +26,6 @@ export class PlayabilityVerifier {
   private readonly timeoutMs: number;
   private readonly successTtlMs: number;
   private readonly failureTtlMs: number;
-  private readonly maxBodyBytes: number;
   private readonly cache = new Map<string, CachedOutcome>();
 
   constructor(options: PlayabilityVerifierOptions = {}) {
@@ -33,7 +33,6 @@ export class PlayabilityVerifier {
     this.timeoutMs = options.timeoutMs ?? 3_000;
     this.successTtlMs = options.successTtlMs ?? 300_000;
     this.failureTtlMs = options.failureTtlMs ?? 60_000;
-    this.maxBodyBytes = Math.max(1, options.maxBodyBytes ?? 1_024);
   }
 
   async verify(source: SourceId, options: PlayOption[]): Promise<PlayOption[]> {
@@ -72,13 +71,12 @@ export class PlayabilityVerifier {
   private async preflightStream(url: string): Promise<boolean> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-    const rangeEnd = Math.min(1, this.maxBodyBytes - 1);
 
     try {
       const response = await this.fetchFn(url, {
         method: 'GET',
         headers: {
-          Range: `bytes=0-${rangeEnd}`,
+          Range: 'bytes=0-1',
           Accept: 'audio/*',
         },
         signal: controller.signal,
