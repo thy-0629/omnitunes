@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCollections, search } from '@/lib/api';
+import { getCollections, resolvePlay, search, startPlay } from '@/lib/api';
 import type { UnifiedSearchResult } from '@/lib/api/types';
 import { usePlayerStore } from '@/stores/player';
 import { useQueueStore } from '@/stores/queue';
@@ -200,6 +200,18 @@ describe('SearchPage', () => {
     const failedSourceRow = screen.getByRole('button', { name: /晴天.*本地.*Playback request failed/ });
     expect(within(failedSourceRow).getByText('Playback request failed')).toHaveAttribute('aria-live', 'polite');
     expect(screen.queryByRole('button', { name: /晴天.*B站.*Playback request failed/ })).not.toBeInTheDocument();
+  });
+
+  it('does not render a later song-level error on an earlier failed source row', async () => {
+    vi.mocked(startPlay).mockRejectedValue(new Error('Source A failed'));
+    await usePlayerStore.getState().playSourceItem('source-1', searchResult.results[0]!.songWork);
+    vi.mocked(resolvePlay).mockRejectedValue(new Error('Song-level failure'));
+
+    await usePlayerStore.getState().playSongWork(searchResult.results[0]!.songWork);
+    render(<SearchPage />);
+
+    expect(usePlayerStore.getState().failedSourceItemId).toBeNull();
+    expect(screen.queryByText('Song-level failure')).not.toBeInTheDocument();
   });
 
   it('shows an unknown artist separately from the Bilibili uploader', () => {

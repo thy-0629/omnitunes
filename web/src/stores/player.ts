@@ -106,7 +106,14 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   },
 
   playSongWork: async (songWork) => {
-    set({ status: 'resolving', error: null, songWork, isPaused: false, currentQueueItemId: null });
+    set({
+      status: 'resolving',
+      error: null,
+      failedSourceItemId: null,
+      songWork,
+      isPaused: false,
+      currentQueueItemId: null,
+    });
     try {
       const resolved = await resolvePlay({ songWorkId: songWork.id });
       if (!resolved.best) {
@@ -135,6 +142,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     set({
       status: 'resolving',
       error: null,
+      failedSourceItemId: null,
       songWork: item.songWork,
       isPaused: false,
       currentQueueItemId: item.id,
@@ -190,7 +198,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   tryFallback: async (reason) => {
     const { playId } = get();
     if (!playId) return;
-    set({ status: 'resolving', error: null, isPaused: false });
+    set({ status: 'resolving', error: null, failedSourceItemId: null, isPaused: false });
     try {
       const res = await fallbackPlay(playId, reason);
       set({
@@ -207,6 +215,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   },
 
   playNextFromQueue: async () => {
+    set({ error: null, failedSourceItemId: null });
     try {
       const result = await nextInQueue(true);
       const { queueItem, started } = result;
