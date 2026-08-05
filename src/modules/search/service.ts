@@ -29,6 +29,7 @@ export interface SearchError {
   source: SourceId;
   code: string;
   message: string;
+  retryAt?: number;
 }
 
 export interface UnifiedSearchResult {
@@ -88,19 +89,33 @@ export class UnifiedSearchService {
           hits.slice(0, 8).map(async (hit) => {
             try {
               const options = await adapter.getPlayOptions(hit.externalId);
-              const playable = await this.verifier.verify(adapter.id, options);
-              this.registry.recordPlayability(adapter.id, playable.length > 0);
-              return playable.length > 0
+              const verification = await this.verifier.verify(adapter.id, options);
+              const failure = verification.failures[0];
+              this.registry.recordPlayability(
+                adapter.id,
+                verification.options.length > 0 ? true : failure ?? false,
+              );
+              return verification.options.length > 0
                 ? { input: { sourceId: adapter.id, hit } satisfies NormalizerInput }
-                : {};
+                : failure
+                  ? {
+                      error: {
+                        source: adapter.id,
+                        code: failure.code,
+                        message: failure.message,
+                        retryAt: failure.retryAt,
+                      } satisfies SearchError,
+                    }
+                  : {};
             } catch (error) {
               this.registry.recordPlayability(adapter.id, false);
-              const err = error as { code?: string; message?: string } | undefined;
+              const err = error as { code?: string; message?: string; retryAt?: number } | undefined;
               return {
                 error: {
                   source: adapter.id,
                   code: err?.code ?? 'unknown',
                   message: err?.message ?? String(error),
+                  ...(err?.retryAt !== undefined ? { retryAt: err.retryAt } : {}),
                 } satisfies SearchError,
               };
             }
@@ -120,11 +135,12 @@ export class UnifiedSearchService {
           if (outcome.error) errors.push(outcome.error);
         }
       } else {
-        const err = res.reason as { code?: string; message?: string } | undefined;
+        const err = res.reason as { code?: string; message?: string; retryAt?: number } | undefined;
         errors.push({
           source: id,
           code: err?.code ?? 'unknown',
           message: err?.message ?? String(res.reason),
+          ...(err?.retryAt !== undefined ? { retryAt: err.retryAt } : {}),
         });
       }
     });

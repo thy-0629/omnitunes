@@ -31,13 +31,18 @@
 import { createHash } from 'node:crypto';
 import type { UnifiedSearchService, UnifiedSearchParams, UnifiedSearchResult } from '../search/service.js';
 import type { PlaybackOrchestrator, ResolvePlayRequest, ResolvePlayResult } from '../playback/orchestrator.js';
+import type { PlayabilityVerifier } from '../sources/playability.js';
 import { LruTtlCache } from './lru.js';
 
 /** Stable hash-based key (deterministic, ignores key-iteration order). */
 export function searchCacheKey(p: UnifiedSearchParams): string {
   const q = p.query.trim().toLowerCase();
   const lim = p.limit ?? 0;
-  const src = (p.sources ?? []).slice().sort().join(',') || '__all__';
+  const src = p.sources === undefined
+    ? '__all__'
+    : p.sources.length === 0
+      ? '__none__'
+      : p.sources.slice().sort().join(',');
   const input = `search|${q}|${lim}|${src}`;
   return `search:${createHash('sha1').update(input).digest('hex').slice(0, 16)}`;
 }
@@ -48,10 +53,15 @@ export function playOptCacheKey(source: string, externalId: string): string {
 
 /** Decorator: wraps a UnifiedSearchService with an LRU+TTL cache. */
 export class CachedUnifiedSearchService {
+  private readonly unsubscribeUnavailable?: () => void;
+
   constructor(
     private readonly inner: UnifiedSearchService,
     private readonly cache: LruTtlCache<UnifiedSearchResult>,
-  ) {}
+    verifier?: PlayabilityVerifier,
+  ) {
+    this.unsubscribeUnavailable = verifier?.onUnavailable(() => this.cache.clear());
+  }
 
   get stats() {
     return this.cache.snapshot();
@@ -63,6 +73,10 @@ export class CachedUnifiedSearchService {
 
   clear(): void {
     this.cache.clear();
+  }
+
+  close(): void {
+    this.unsubscribeUnavailable?.();
   }
 
   async search(params: UnifiedSearchParams): Promise<UnifiedSearchResult> {

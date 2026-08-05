@@ -5,11 +5,13 @@ import type {
   SearchParams,
   SourceAdapter,
 } from '../types.js';
-import { SourceError } from '../types.js';
+import { parseRetryAfter, SourceError } from '../types.js';
 
 const API_URL = 'https://commons.wikimedia.org/w/api.php';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 250;
+const WIKIMEDIA_USER_AGENT =
+  'OmniTunes/0.1.0 (music source discovery; https://github.com/thy-0629/omnitunes)';
 
 interface CommonsRecord {
   title: string;
@@ -35,6 +37,7 @@ export class WikimediaCommonsAdapter implements SourceAdapter {
   private readonly cacheTtlMs: number;
   private readonly cacheMaxEntries: number;
   private readonly cache = new Map<string, CacheEntry>();
+  private rateLimitRetryAt = 0;
 
   constructor(options: {
     fetchFn?: typeof fetch;
@@ -137,6 +140,15 @@ export class WikimediaCommonsAdapter implements SourceAdapter {
   }
 
   private async getJson(url: string, operation: string): Promise<unknown> {
+    if (this.rateLimitRetryAt > Date.now()) {
+      throw new SourceError(
+        this.id,
+        'rate_limited',
+        `Wikimedia Commons ${operation} is cooling down after rate limiting`,
+        undefined,
+        this.rateLimitRetryAt,
+      );
+    }
     let response: Response;
     try {
       response = await this.fetchWithTimeout(url);
@@ -145,6 +157,17 @@ export class WikimediaCommonsAdapter implements SourceAdapter {
     }
     if (response.status === 404) {
       throw new SourceError(this.id, 'source_gone', `Wikimedia Commons file not found: ${url}`);
+    }
+    if (response.status === 429) {
+      this.rateLimitRetryAt = parseRetryAfter(response.headers.get('retry-after'))
+        ?? Date.now() + 60_000;
+      throw new SourceError(
+        this.id,
+        'rate_limited',
+        `Wikimedia Commons ${operation} HTTP 429`,
+        undefined,
+        this.rateLimitRetryAt,
+      );
     }
     if (!response.ok) {
       throw new SourceError(
@@ -169,7 +192,13 @@ export class WikimediaCommonsAdapter implements SourceAdapter {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      return await this.fetchFn(url, { signal: controller.signal });
+      return await this.fetchFn(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': WIKIMEDIA_USER_AGENT,
+          'Api-User-Agent': WIKIMEDIA_USER_AGENT,
+        },
+      });
     } finally {
       clearTimeout(timeout);
     }

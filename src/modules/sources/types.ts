@@ -130,8 +130,17 @@ export class SourceError extends Error {
     public readonly code: SourceErrorCode,
     message: string,
     public override readonly cause?: unknown,
+    public readonly retryAt?: number,
   ) {
     super(message);
     this.name = 'SourceError';
   }
+}
+
+export function parseRetryAfter(raw: string | null, now = Date.now()): number | undefined {
+  if (!raw) return undefined;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) return now + Math.ceil(seconds * 1_000);
+  const timestamp = Date.parse(raw);
+  return Number.isFinite(timestamp) && timestamp > now ? timestamp : undefined;
 }

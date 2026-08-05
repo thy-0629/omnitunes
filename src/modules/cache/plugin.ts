@@ -48,7 +48,7 @@ export default fp(
       defaultTtlMs: config.PLAY_OPTIONS_CACHE_TTL_SEC * 1000,
     });
 
-    app.decorate('search', new CachedUnifiedSearchService(innerSearch, searchCache));
+    app.decorate('search', new CachedUnifiedSearchService(innerSearch, searchCache, app.playability));
     app.decorate('playback', new CachedPlaybackOrchestrator(innerOrchestrator, playOptCache));
 
     app.decorate('cache', {
@@ -79,6 +79,7 @@ export default fp(
 
     app.addHook('onClose', async () => {
       clearInterval(pruner);
+      app.search.close();
       app.cache.clearAll();
     });
 

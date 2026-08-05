@@ -32,10 +32,10 @@ describe('searchCacheKey', () => {
     expect(k1).toBe(k2);
   });
 
-  it('treats undefined sources as "__all__"', () => {
+  it('distinguishes an explicit no-sources filter from the all-sources default', () => {
     const k1 = searchCacheKey({ query: 'hello', limit: 5 });
     const k2 = searchCacheKey({ query: 'hello', limit: 5, sources: [] });
-    expect(k1).toBe(k2);
+    expect(k1).not.toBe(k2);
   });
 
   it('keys start with "search:" prefix', () => {

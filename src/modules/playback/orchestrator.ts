@@ -133,9 +133,14 @@ export class PlaybackOrchestrator {
         const source = si.source as SourceId;
         try {
           const fresh = await this.registry.instrumentedPlayOptions(source, si.externalId);
-          const verified = await this.verifier.verify(source, fresh);
-          this.registry.recordPlayability(source, verified.length > 0);
-          return verified;
+          const verification = await this.verifier.verify(source, fresh);
+          const failure = verification.failures[0];
+          this.registry.recordPlayability(
+            source,
+            verification.options.length > 0 ? true : failure ?? false,
+          );
+          if (verification.options.length === 0 && failure) throw failure;
+          return verification.options;
         } catch (error) {
           this.registry.recordPlayability(source, false);
           throw error;
@@ -390,11 +395,19 @@ export class PlaybackOrchestrator {
       // Persisted options still identify the failed playback when refreshing
       // the adapter's signed URL is itself unavailable.
     }
-    this.verifier.markUnavailable(
+    const unavailable = this.verifier.markUnavailable(
       failedSource,
       [...freshFailedOptions, ...persistedFailedOptions],
     );
-    this.registry.recordPlayability(failedSource, false);
+    this.registry.recordPlayability(failedSource, unavailable
+      ? {
+          source: failedSource,
+          url: unavailable.urls[0] ?? '',
+          code: 'runtime_failure',
+          message: 'Playback failed at runtime; stream is cooling down before retry',
+          retryAt: unavailable.retryAt,
+        }
+      : false);
     this.db
       .update(playableOptions)
       .set({ status: 'blocked', updatedAt: Date.now() })

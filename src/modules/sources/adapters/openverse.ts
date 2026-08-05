@@ -5,7 +5,7 @@ import type {
   SearchParams,
   SourceAdapter,
 } from '../types.js';
-import { SourceError } from '../types.js';
+import { parseRetryAfter, SourceError } from '../types.js';
 
 const API_ROOT = 'https://api.openverse.org/v1/audio/';
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -38,6 +38,7 @@ export class OpenverseAdapter implements SourceAdapter {
   private readonly cacheTtlMs: number;
   private readonly cacheMaxEntries: number;
   private readonly cache = new Map<string, CacheEntry>();
+  private rateLimitRetryAt = 0;
 
   constructor(options: {
     fetchFn?: typeof fetch;
@@ -126,6 +127,15 @@ export class OpenverseAdapter implements SourceAdapter {
   }
 
   private async getJson(url: string, operation: string): Promise<unknown> {
+    if (this.rateLimitRetryAt > Date.now()) {
+      throw new SourceError(
+        this.id,
+        'rate_limited',
+        `Openverse ${operation} is cooling down after rate limiting`,
+        undefined,
+        this.rateLimitRetryAt,
+      );
+    }
     let response: Response;
     try {
       response = await this.fetchWithTimeout(url);
@@ -134,6 +144,17 @@ export class OpenverseAdapter implements SourceAdapter {
     }
     if (response.status === 404) {
       throw new SourceError(this.id, 'source_gone', `Openverse audio not found: ${url}`);
+    }
+    if (response.status === 429) {
+      this.rateLimitRetryAt = parseRetryAfter(response.headers.get('retry-after'))
+        ?? Date.now() + 60_000;
+      throw new SourceError(
+        this.id,
+        'rate_limited',
+        `Openverse ${operation} HTTP 429`,
+        undefined,
+        this.rateLimitRetryAt,
+      );
     }
     if (!response.ok) {
       throw new SourceError(this.id, 'network', `Openverse ${operation} HTTP ${response.status}`);

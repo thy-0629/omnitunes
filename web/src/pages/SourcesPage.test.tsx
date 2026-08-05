@@ -17,6 +17,10 @@ vi.mock('@/stores/sources', () => ({
           successRate: 0.875,
           playabilitySuccessRate: 0.666,
           avgLatencyMs: 120,
+          lastPlayabilityErrorCode: 'invalid_content_type',
+          lastPlayabilityErrorMessage: 'Expected an audio response, received application/json',
+          lastPlayabilityErrorAt: 1_786_000_000_000,
+          playabilityRetryAt: 4_102_444_800_000,
         },
       },
       {
@@ -43,5 +47,8 @@ describe('SourcesPage', () => {
 
     expect(screen.getByText('可播放验证 67%')).toBeVisible();
     expect(screen.getByText('尚无可播放验证')).toBeVisible();
+    expect(screen.getByText(/invalid_content_type/)).toBeVisible();
+    expect(screen.getByText(/application\/json/)).toBeVisible();
+    expect(screen.getByText(/可重试/)).toBeVisible();
   });
 });

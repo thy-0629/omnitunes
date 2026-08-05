@@ -28,4 +28,24 @@ describe('SourceAttribution', () => {
 
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('truncates a long visible label without displacing controls and keeps its full accessible name', () => {
+    const license = 'Creative Commons Attribution-ShareAlike 4.0 International';
+    render(
+      <SourceAttribution
+        attribution={{
+          license,
+          licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+          sourceUrl: 'https://commons.wikimedia.org/wiki/File:Example.ogg',
+          creator: 'Example creator',
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: license })).toHaveClass(
+      'max-w-24',
+      'truncate',
+      'min-w-0',
+    );
+  });
 });

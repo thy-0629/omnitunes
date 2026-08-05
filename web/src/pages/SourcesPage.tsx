@@ -72,7 +72,25 @@ export function SourcesPage() {
                     .join(' / ')}
                 </div>
                 {s.stats.lastErrorCode && (
-                  <div className="text-destructive">最近错误：{s.stats.lastErrorCode}</div>
+                  <div className="text-destructive">
+                    最近错误：{s.stats.lastErrorCode}
+                    {s.stats.lastErrorMessage ? ` · ${s.stats.lastErrorMessage}` : ''}
+                  </div>
+                )}
+                {s.stats.lastPlayabilityErrorCode && (
+                  <div className="text-destructive">
+                    最近预检错误：{s.stats.lastPlayabilityErrorCode}
+                    {s.stats.lastPlayabilityErrorMessage
+                      ? ` · ${s.stats.lastPlayabilityErrorMessage}`
+                      : ''}
+                  </div>
+                )}
+                {(s.stats.playabilityRetryAt ?? s.stats.lastErrorRetryAt) != null && (
+                  <div>
+                    可重试：{new Date(
+                      s.stats.playabilityRetryAt ?? s.stats.lastErrorRetryAt!,
+                    ).toLocaleString()}
+                  </div>
                 )}
               </div>
             </div>

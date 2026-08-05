@@ -5,6 +5,7 @@ import type {
   SourceAdapter,
   SourceId,
 } from './types.js';
+import type { PlayabilityFailure } from './playability.js';
 
 interface SourceStats {
   totalCalls: number;
@@ -15,6 +16,11 @@ interface SourceStats {
   lastErrorCode?: string;
   lastErrorAt?: number;
   lastErrorMessage?: string;
+  lastErrorRetryAt?: number;
+  lastPlayabilityErrorCode?: string;
+  lastPlayabilityErrorAt?: number;
+  lastPlayabilityErrorMessage?: string;
+  playabilityRetryAt?: number;
 }
 
 /**
@@ -67,6 +73,12 @@ export class SourceRegistry {
       avgLatencyMs: number;
       lastErrorCode?: string;
       lastErrorAt?: number;
+      lastErrorMessage?: string;
+      lastErrorRetryAt?: number;
+      lastPlayabilityErrorCode?: string;
+      lastPlayabilityErrorAt?: number;
+      lastPlayabilityErrorMessage?: string;
+      playabilityRetryAt?: number;
     };
   }> {
     return this.list().map((a) => {
@@ -87,6 +99,12 @@ export class SourceRegistry {
           avgLatencyMs,
           lastErrorCode: s.lastErrorCode,
           lastErrorAt: s.lastErrorAt,
+          lastErrorMessage: s.lastErrorMessage,
+          lastErrorRetryAt: s.lastErrorRetryAt,
+          lastPlayabilityErrorCode: s.lastPlayabilityErrorCode,
+          lastPlayabilityErrorAt: s.lastPlayabilityErrorAt,
+          lastPlayabilityErrorMessage: s.lastPlayabilityErrorMessage,
+          playabilityRetryAt: s.playabilityRetryAt,
         },
       };
     });
@@ -128,11 +146,20 @@ export class SourceRegistry {
     }
   }
 
-  recordPlayability(id: SourceId, ok: boolean): void {
+  recordPlayability(id: SourceId, outcome: boolean | PlayabilityFailure): void {
     const s = this.stats.get(id);
     if (!s) return;
     s.playabilityCalls += 1;
-    if (ok) s.playabilitySuccesses += 1;
+    if (outcome === true) {
+      s.playabilitySuccesses += 1;
+      return;
+    }
+    if (outcome && typeof outcome === 'object') {
+      s.lastPlayabilityErrorAt = Date.now();
+      s.lastPlayabilityErrorCode = outcome.code;
+      s.lastPlayabilityErrorMessage = outcome.message;
+      s.playabilityRetryAt = outcome.retryAt;
+    }
   }
 
   /**
@@ -188,6 +215,10 @@ export class SourceRegistry {
           ? String((err as { code: unknown }).code)
           : 'unknown';
       s.lastErrorMessage = err instanceof Error ? err.message : String(err);
+      s.lastErrorRetryAt =
+        err && typeof err === 'object' && 'retryAt' in err && typeof (err as { retryAt?: unknown }).retryAt === 'number'
+          ? (err as { retryAt: number }).retryAt
+          : undefined;
     }
   }
 }

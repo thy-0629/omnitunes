@@ -37,7 +37,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
     const result = await app.search.search({
       query: parsed.data.q,
       limit: parsed.data.limit,
-      sources: sources.length > 0 ? sources : undefined,
+      sources: parsed.data.sources === undefined ? undefined : sources,
     });
     return result;
   });

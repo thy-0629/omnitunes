@@ -125,6 +125,23 @@ describe('OpenverseAdapter', () => {
     });
   });
 
+  it('classifies HTTP 429 separately and preserves Retry-After', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-05T00:00:00Z'));
+    const adapter = new OpenverseAdapter({
+      fetchFn: vi.fn().mockResolvedValue(new Response('', {
+        status: 429,
+        headers: { 'retry-after': '120' },
+      })) as unknown as typeof fetch,
+    });
+
+    await expect(adapter.search({ query: 'song' })).rejects.toMatchObject({
+      sourceId: 'openverse',
+      code: 'rate_limited',
+      retryAt: Date.now() + 120_000,
+    });
+  });
+
   it('aborts at the default 10-second boundary and classifies the timeout', async () => {
     vi.useFakeTimers();
     let signal: AbortSignal | undefined;

@@ -64,6 +64,25 @@ describe('SourceRegistry', () => {
       expect(stats.successRate).toBe(1);
       expect(stats.playabilitySuccessRate).toBe(0.5);
     });
+
+    it('retains the latest structured preflight failure reason and retry time', () => {
+      registry.register(new MockAdapter());
+      registry.recordPlayability('mock', {
+        source: 'mock',
+        url: 'https://media.example/song.mp3',
+        code: 'rate_limited',
+        message: 'Media preflight returned HTTP 429',
+        retryAt: 123_456,
+      });
+
+      expect(registry.describe()[0]!.stats).toMatchObject({
+        playabilitySuccessRate: 0,
+        lastPlayabilityErrorCode: 'rate_limited',
+        lastPlayabilityErrorMessage: 'Media preflight returned HTTP 429',
+        lastPlayabilityErrorAt: expect.any(Number),
+        playabilityRetryAt: 123_456,
+      });
+    });
   });
 
   describe('instrumentedSearch()', () => {

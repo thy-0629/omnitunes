@@ -80,6 +80,10 @@ describe('WikimediaCommonsAdapter', () => {
     expect(url.searchParams.get('prop')).toBe('imageinfo');
     expect(url.searchParams.get('iiprop')).toBe('url|extmetadata');
     expect(url.searchParams.get('format')).toBe('json');
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(new Headers(init.headers).get('user-agent')).toBe(
+      'OmniTunes/0.1.0 (music source discovery; https://github.com/thy-0629/omnitunes)',
+    );
     await expect(adapter.getPlayOptions(FILE_TITLE)).resolves.toEqual([
       {
         type: 'stream',
@@ -138,6 +142,23 @@ describe('WikimediaCommonsAdapter', () => {
     await expect(adapter.search({ query: 'song' })).rejects.toMatchObject({
       sourceId: 'wikimedia',
       code: 'network',
+    });
+  });
+
+  it('classifies HTTP 429 separately and preserves Retry-After', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-05T00:00:00Z'));
+    const adapter = new WikimediaCommonsAdapter({
+      fetchFn: vi.fn().mockResolvedValue(new Response('', {
+        status: 429,
+        headers: { 'retry-after': 'Wed, 05 Aug 2026 00:02:00 GMT' },
+      })) as unknown as typeof fetch,
+    });
+
+    await expect(adapter.search({ query: 'song' })).rejects.toMatchObject({
+      sourceId: 'wikimedia',
+      code: 'rate_limited',
+      retryAt: Date.now() + 120_000,
     });
   });
 

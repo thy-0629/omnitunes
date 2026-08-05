@@ -121,7 +121,7 @@ export function SearchPage() {
           <div className="flex flex-wrap items-center gap-2 px-1">
             <span className="text-xs font-medium text-muted-foreground">音源</span>
             {SOURCE_FILTERS.map(({ id, label }) => {
-              const active = sources === undefined || sources.includes(id);
+              const active = sources.includes(id);
               return (
                 <button
                   key={id}
@@ -155,9 +155,10 @@ export function SearchPage() {
 
         {result && result.errors.length > 0 && (
           <div className="mt-4 rounded-[1.25rem] border border-yellow-600/40 bg-yellow-600/10 px-3 py-2 text-xs">
-            {result.errors.map((e) => (
-              <div key={e.source}>
+            {result.errors.map((e, index) => (
+              <div key={`${e.source}:${e.code}:${index}`}>
                 {e.source} 暂不可用：{e.message}
+                {e.retryAt ? `（${new Date(e.retryAt).toLocaleString()} 后可重试）` : ''}
               </div>
             ))}
           </div>

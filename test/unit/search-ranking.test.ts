@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Normalizer, canonicalTitle } from '../../src/modules/search/normalizer.js';
 import { scoreGroup, UnifiedSearchService, type SearchResultGroup } from '../../src/modules/search/service.js';
 import { PlayabilityVerifier } from '../../src/modules/sources/playability.js';
@@ -120,6 +120,10 @@ describe('scoreGroup', () => {
 });
 
 describe('UnifiedSearchService playability gate', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('does not normalize a hit whose only stream option fails preflight', async () => {
     const adapter: SourceAdapter = {
       id: 'open_source',
@@ -142,6 +146,7 @@ describe('UnifiedSearchService playability gate', () => {
         status: 503,
         headers: { 'content-type': 'text/plain' },
       })) as unknown as typeof fetch,
+      resolveHostname: vi.fn().mockResolvedValue(['93.184.216.34']),
     });
     const service = new UnifiedSearchService(registry, normalizer, verifier);
 
@@ -149,6 +154,63 @@ describe('UnifiedSearchService playability gate', () => {
 
     expect(result.results).toEqual([]);
     expect(normalizeAll).toHaveBeenCalledWith([]);
+    expect(result.errors).toEqual([
+      expect.objectContaining({ source: 'open_source', code: 'http_status' }),
+    ]);
+  });
+
+  it.each([
+    [
+      'timeout',
+      vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+      'timeout',
+    ],
+    [
+      'HTTP rejection',
+      vi.fn().mockResolvedValue(new Response('', {
+        status: 503,
+        headers: { 'content-type': 'audio/mpeg', 'content-length': '2' },
+      })),
+      'http_status',
+    ],
+    [
+      'content rejection',
+      vi.fn().mockResolvedValue(new Response('{}', {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'content-length': '2' },
+      })),
+      'invalid_content_type',
+    ],
+  ])('surfaces a structured source error for preflight %s', async (_name, fetchFn, expectedCode) => {
+    const adapter: SourceAdapter = {
+      id: 'openverse',
+      displayName: 'Openverse test adapter',
+      capabilities: { search: true, playOptions: true, health: true },
+      search: vi.fn().mockResolvedValue([
+        { externalId: 'candidate', title: 'Candidate', artists: 'Artist' },
+      ]),
+      getPlayOptions: vi.fn().mockResolvedValue([
+        { type: 'stream', payload: 'https://media.example/candidate.mp3' },
+      ]),
+      health: vi.fn().mockResolvedValue({ status: 'healthy', checkedAt: 0 }),
+    };
+    const registry = new SourceRegistry();
+    registry.register(adapter);
+    const normalizer = { normalizeAll: vi.fn().mockReturnValue([]) } as unknown as Normalizer;
+    const verifier = new PlayabilityVerifier({
+      fetchFn: fetchFn as unknown as typeof fetch,
+      resolveHostname: vi.fn().mockResolvedValue(['93.184.216.34']),
+    });
+
+    const result = await new UnifiedSearchService(registry, normalizer, verifier)
+      .search({ query: 'candidate' });
+
+    expect(result.errors).toEqual([
+      expect.objectContaining({ source: 'openverse', code: expectedCode }),
+    ]);
+    expect(registry.describe()[0]!.stats).toMatchObject({
+      lastPlayabilityErrorCode: expectedCode,
+    });
   });
 
   it('checks only the top eight hits and preserves a per-hit source error', async () => {

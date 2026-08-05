@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCollections } from '@/lib/api';
+import { getCollections, search } from '@/lib/api';
 import type { UnifiedSearchResult } from '@/lib/api/types';
 import { usePlayerStore } from '@/stores/player';
 import { useQueueStore } from '@/stores/queue';
@@ -24,6 +24,7 @@ vi.mock('@/lib/api', () => ({
   removeCollection: vi.fn(),
   removeFromQueue: vi.fn(),
   resolvePlay: vi.fn(),
+  search: vi.fn(),
   startPlay: vi.fn(),
 }));
 
@@ -82,14 +83,25 @@ describe('SearchPage', () => {
 
   beforeEach(() => {
     vi.mocked(getCollections).mockResolvedValue({ items: [], total: 0 });
+    vi.mocked(search).mockResolvedValue(searchResult);
     usePlayerStore.getState().reset();
     useSearchStore.setState({
       query: '',
       result: searchResult,
       loading: false,
       error: null,
-      sources: undefined,
+      sources: ['bilibili', 'open_source', 'openverse', 'wikimedia', 'local'],
     });
+  });
+
+  it('models the default-all filter as an explicit enabled source set', () => {
+    expect(useSearchStore.getInitialState().sources).toEqual([
+      'bilibili',
+      'open_source',
+      'openverse',
+      'wikimedia',
+      'local',
+    ]);
   });
 
   it('keeps every source row playable while showing grouped song and source metadata', () => {
@@ -183,14 +195,30 @@ describe('SearchPage', () => {
     expect(within(sourceRow).getByText('晴天 官方MV · 未知艺术家')).toBeVisible();
     expect(within(sourceRow).getByText('某UP主 · B站 · 4:29')).toBeVisible();
   });
-  it('keeps Openverse and Commons filters independently selectable', () => {
+  it.each([
+    ['Openverse', 'openverse'],
+    ['Commons', 'wikimedia'],
+  ] as const)('turns off only %s from the default-all set in the next request', async (label, sourceId) => {
+    render(<SearchPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    useSearchStore.getState().setQuery('filter test');
+    await useSearchStore.getState().runSearch();
+
+    const expected = ['bilibili', 'open_source', 'openverse', 'wikimedia', 'local']
+      .filter((id) => id !== sourceId);
+    expect(useSearchStore.getState().sources).toEqual(expected);
+    expect(search).toHaveBeenLastCalledWith('filter test', { limit: 20, sources: expected });
+  });
+
+  it('clears results and empty-state identity when a source filter changes', () => {
     render(<SearchPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Openverse' }));
-    expect(useSearchStore.getState().sources).toEqual(['openverse']);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Commons' }));
-    expect(useSearchStore.getState().sources).toEqual(['openverse', 'wikimedia']);
+    expect(useSearchStore.getState().result).toBeNull();
+    expect(screen.queryByRole('button', { name: /鏅村ぉ.*鏉板▉灏旈煶涔?/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('未找到可播放版本')).not.toBeInTheDocument();
   });
 
   it('wraps source filters on narrow screens instead of overflowing', () => {

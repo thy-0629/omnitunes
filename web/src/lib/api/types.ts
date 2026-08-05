@@ -70,6 +70,7 @@ export interface SearchError {
   source: SourceId;
   code: string;
   message: string;
+  retryAt?: number;
 }
 
 export interface UnifiedSearchResult {
@@ -187,6 +188,12 @@ export interface SourceDescription {
     avgLatencyMs: number;
     lastErrorCode?: string;
     lastErrorAt?: number;
+    lastErrorMessage?: string;
+    lastErrorRetryAt?: number;
+    lastPlayabilityErrorCode?: string;
+    lastPlayabilityErrorAt?: number;
+    lastPlayabilityErrorMessage?: string;
+    playabilityRetryAt?: number;
   };
 }
 
