@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   OpenverseAdapter,
   parseOpenverseResponse,
@@ -54,6 +54,10 @@ describe('parseOpenverseResponse', () => {
 });
 
 describe('OpenverseAdapter', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('uses anonymous official music search and serves the cached direct stream', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ results: [VALID_AUDIO] }), { status: 200 }),
@@ -84,5 +88,63 @@ describe('OpenverseAdapter', () => {
     expect(String(fetchMock.mock.calls[0]![0])).toBe(
       `https://api.openverse.org/v1/audio/${VALID_AUDIO.id}/`,
     );
+  });
+
+  it('evicts the oldest cached record when the cache bound is exceeded', async () => {
+    const secondAudio = {
+      ...VALID_AUDIO,
+      id: '9f4b940e-88b3-4fa2-813f-d2a7e5681d0e',
+      title: 'Second Song',
+      url: 'https://cdn.example.org/audio/second.mp3',
+      foreign_landing_url: 'https://example.org/audio/second',
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ results: [VALID_AUDIO, secondAudio] }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify(VALID_AUDIO), { status: 200 }));
+    const adapter = new OpenverseAdapter({
+      fetchFn: fetchMock as unknown as typeof fetch,
+      cacheMaxEntries: 1,
+    });
+
+    await adapter.search({ query: 'songs' });
+    await expect(adapter.getPlayOptions(VALID_AUDIO.id)).resolves.toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('classifies a rejected request as an Openverse network error', async () => {
+    const adapter = new OpenverseAdapter({
+      fetchFn: vi.fn().mockRejectedValue(new Error('offline')) as unknown as typeof fetch,
+    });
+
+    await expect(adapter.search({ query: 'song' })).rejects.toMatchObject({
+      sourceId: 'openverse',
+      code: 'network',
+    });
+  });
+
+  it('aborts at the default 10-second boundary and classifies the timeout', async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const fetchMock = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal as AbortSignal;
+      return new Promise<Response>((_resolve, reject) => {
+        signal!.addEventListener('abort', () => reject(signal!.reason), { once: true });
+      });
+    });
+    const adapter = new OpenverseAdapter({ fetchFn: fetchMock as unknown as typeof fetch });
+    const request = adapter.search({ query: 'song' });
+    const rejection = expect(request).rejects.toMatchObject({
+      sourceId: 'openverse',
+      code: 'network',
+    });
+
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(signal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signal?.aborted).toBe(true);
+    await rejection;
   });
 });

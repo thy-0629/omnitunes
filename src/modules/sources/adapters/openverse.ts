@@ -9,6 +9,7 @@ import { SourceError } from '../types.js';
 
 const API_ROOT = 'https://api.openverse.org/v1/audio/';
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 250;
 
 interface OpenverseRecord {
   id: string;
@@ -35,16 +36,19 @@ export class OpenverseAdapter implements SourceAdapter {
   private readonly fetchFn: typeof fetch;
   private readonly timeoutMs: number;
   private readonly cacheTtlMs: number;
+  private readonly cacheMaxEntries: number;
   private readonly cache = new Map<string, CacheEntry>();
 
   constructor(options: {
     fetchFn?: typeof fetch;
     timeoutMs?: number;
     cacheTtlMs?: number;
+    cacheMaxEntries?: number;
   } = {}) {
     this.fetchFn = options.fetchFn ?? fetch;
     this.timeoutMs = options.timeoutMs ?? 10_000;
     this.cacheTtlMs = options.cacheTtlMs ?? CACHE_TTL_MS;
+    this.cacheMaxEntries = Math.max(1, Math.floor(options.cacheMaxEntries ?? CACHE_MAX_ENTRIES));
   }
 
   async search(params: SearchParams): Promise<RawHit[]> {
@@ -93,8 +97,18 @@ export class OpenverseAdapter implements SourceAdapter {
   }
 
   private remember(records: OpenverseRecord[]): void {
-    const expiresAt = Date.now() + this.cacheTtlMs;
-    for (const record of records) this.cache.set(record.id, { record, expiresAt });
+    const now = Date.now();
+    const expiresAt = now + this.cacheTtlMs;
+    this.pruneCache(now);
+    for (const record of records) {
+      this.cache.delete(record.id);
+      this.cache.set(record.id, { record, expiresAt });
+      while (this.cache.size > this.cacheMaxEntries) {
+        const oldestId = this.cache.keys().next().value as string | undefined;
+        if (oldestId === undefined) break;
+        this.cache.delete(oldestId);
+      }
+    }
   }
 
   private readCache(id: string): OpenverseRecord | undefined {
@@ -103,6 +117,12 @@ export class OpenverseAdapter implements SourceAdapter {
     if (entry.expiresAt > Date.now()) return entry.record;
     this.cache.delete(id);
     return undefined;
+  }
+
+  private pruneCache(now: number): void {
+    for (const [id, entry] of this.cache) {
+      if (entry.expiresAt <= now) this.cache.delete(id);
+    }
   }
 
   private async getJson(url: string, operation: string): Promise<unknown> {

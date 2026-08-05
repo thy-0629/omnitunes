@@ -9,6 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import type { SearchResultGroup, SourceId } from '@/lib/api/types';
+import { sourcePresentation } from '@/lib/source-presentation';
 
 import './apple-theme.css';
 
@@ -146,31 +147,11 @@ const MOCK_RESULTS: SearchResultGroup[] = [
 ];
 
 function sourceLabel(source: SourceId) {
-  switch (source) {
-    case 'bilibili':
-      return 'B站';
-    case 'open_source':
-      return 'Archive';
-    case 'local':
-      return '本地';
-    case 'youtube':
-      return 'YouTube';
-    default:
-      return source;
-  }
+  return sourcePresentation(source).label;
 }
 
 function sourceTone(source: SourceId) {
-  switch (source) {
-    case 'bilibili':
-      return 'bg-pink-500/90 text-white';
-    case 'open_source':
-      return 'bg-emerald-600/90 text-white';
-    case 'local':
-      return 'bg-sky-600/90 text-white';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
+  return sourcePresentation(source).tone;
 }
 
 /**

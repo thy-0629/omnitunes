@@ -7,6 +7,7 @@ import { usePlayerStore } from '@/stores/player';
 import { useQueueStore } from '@/stores/queue';
 import { addCollection, getCollections, removeCollection } from '@/lib/api';
 import { formatDuration } from '@/lib/utils';
+import { sourcePresentation } from '@/lib/source-presentation';
 import type { SearchResultGroup, SourceId, SourceItem } from '@/lib/api/types';
 
 const SOURCE_FILTERS: Array<{ id: SourceId; label: string }> = [
@@ -16,37 +17,11 @@ const SOURCE_FILTERS: Array<{ id: SourceId; label: string }> = [
 ];
 
 function sourceLabel(source: SourceId) {
-  switch (source) {
-    case 'bilibili':
-      return 'B站';
-    case 'open_source':
-      return 'Archive';
-    case 'local':
-      return '本地';
-    case 'youtube':
-      return 'YouTube';
-    case 'mock':
-      return 'Mock';
-    default:
-      return source;
-  }
+  return sourcePresentation(source).label;
 }
 
 function sourceTone(source: SourceId) {
-  switch (source) {
-    case 'bilibili':
-      return 'bg-pink-500/90 text-white';
-    case 'open_source':
-      return 'bg-emerald-600/90 text-white';
-    case 'local':
-      return 'bg-sky-600/90 text-white';
-    case 'youtube':
-      return 'bg-red-600/90 text-white';
-    case 'mock':
-      return 'bg-zinc-500/90 text-white';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
+  return sourcePresentation(source).tone;
 }
 
 export function SearchPage() {

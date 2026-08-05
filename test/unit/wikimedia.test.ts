@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   WikimediaCommonsAdapter,
   parseWikimediaResponse,
@@ -58,6 +58,10 @@ describe('parseWikimediaResponse', () => {
 });
 
 describe('WikimediaCommonsAdapter', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('uses the official generator search and serves its cached public stream', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(VALID_RESPONSE), { status: 200 }),
@@ -98,5 +102,65 @@ describe('WikimediaCommonsAdapter', () => {
     const url = new URL(String(fetchMock.mock.calls[0]![0]));
     expect(url.searchParams.get('titles')).toBe(FILE_TITLE);
     expect(url.searchParams.has('generator')).toBe(false);
+  });
+
+  it('evicts the oldest cached record when the cache bound is exceeded', async () => {
+    const secondTitle = 'File:Second song.ogg';
+    const searchResponse = structuredClone(VALID_RESPONSE);
+    searchResponse.query.pages[43] = {
+      ...structuredClone(VALID_RESPONSE.query.pages[42]!),
+      title: secondTitle,
+      imageinfo: [{
+        ...structuredClone(VALID_RESPONSE.query.pages[42]!.imageinfo[0]!),
+        url: 'https://upload.wikimedia.org/second-song.ogg',
+        descriptionurl: 'https://commons.wikimedia.org/wiki/File:Second_song.ogg',
+      }],
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(searchResponse), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(VALID_RESPONSE), { status: 200 }));
+    const adapter = new WikimediaCommonsAdapter({
+      fetchFn: fetchMock as unknown as typeof fetch,
+      cacheMaxEntries: 1,
+    });
+
+    await adapter.search({ query: 'songs' });
+    await expect(adapter.getPlayOptions(FILE_TITLE)).resolves.toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('classifies a rejected request as a Commons network error', async () => {
+    const adapter = new WikimediaCommonsAdapter({
+      fetchFn: vi.fn().mockRejectedValue(new Error('offline')) as unknown as typeof fetch,
+    });
+
+    await expect(adapter.search({ query: 'song' })).rejects.toMatchObject({
+      sourceId: 'wikimedia',
+      code: 'network',
+    });
+  });
+
+  it('aborts at the default 10-second boundary and classifies the timeout', async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const fetchMock = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal as AbortSignal;
+      return new Promise<Response>((_resolve, reject) => {
+        signal!.addEventListener('abort', () => reject(signal!.reason), { once: true });
+      });
+    });
+    const adapter = new WikimediaCommonsAdapter({ fetchFn: fetchMock as unknown as typeof fetch });
+    const request = adapter.search({ query: 'song' });
+    const rejection = expect(request).rejects.toMatchObject({
+      sourceId: 'wikimedia',
+      code: 'network',
+    });
+
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(signal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signal?.aborted).toBe(true);
+    await rejection;
   });
 });

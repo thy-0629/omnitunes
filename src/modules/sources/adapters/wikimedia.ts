@@ -9,6 +9,7 @@ import { SourceError } from '../types.js';
 
 const API_URL = 'https://commons.wikimedia.org/w/api.php';
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 250;
 
 interface CommonsRecord {
   title: string;
@@ -32,16 +33,19 @@ export class WikimediaCommonsAdapter implements SourceAdapter {
   private readonly fetchFn: typeof fetch;
   private readonly timeoutMs: number;
   private readonly cacheTtlMs: number;
+  private readonly cacheMaxEntries: number;
   private readonly cache = new Map<string, CacheEntry>();
 
   constructor(options: {
     fetchFn?: typeof fetch;
     timeoutMs?: number;
     cacheTtlMs?: number;
+    cacheMaxEntries?: number;
   } = {}) {
     this.fetchFn = options.fetchFn ?? fetch;
     this.timeoutMs = options.timeoutMs ?? 10_000;
     this.cacheTtlMs = options.cacheTtlMs ?? CACHE_TTL_MS;
+    this.cacheMaxEntries = Math.max(1, Math.floor(options.cacheMaxEntries ?? CACHE_MAX_ENTRIES));
   }
 
   async search(params: SearchParams): Promise<RawHit[]> {
@@ -104,8 +108,18 @@ export class WikimediaCommonsAdapter implements SourceAdapter {
   }
 
   private remember(records: CommonsRecord[]): void {
-    const expiresAt = Date.now() + this.cacheTtlMs;
-    for (const record of records) this.cache.set(record.title, { record, expiresAt });
+    const now = Date.now();
+    const expiresAt = now + this.cacheTtlMs;
+    this.pruneCache(now);
+    for (const record of records) {
+      this.cache.delete(record.title);
+      this.cache.set(record.title, { record, expiresAt });
+      while (this.cache.size > this.cacheMaxEntries) {
+        const oldestTitle = this.cache.keys().next().value as string | undefined;
+        if (oldestTitle === undefined) break;
+        this.cache.delete(oldestTitle);
+      }
+    }
   }
 
   private readCache(title: string): CommonsRecord | undefined {
@@ -114,6 +128,12 @@ export class WikimediaCommonsAdapter implements SourceAdapter {
     if (entry.expiresAt > Date.now()) return entry.record;
     this.cache.delete(title);
     return undefined;
+  }
+
+  private pruneCache(now: number): void {
+    for (const [title, entry] of this.cache) {
+      if (entry.expiresAt <= now) this.cache.delete(title);
+    }
   }
 
   private async getJson(url: string, operation: string): Promise<unknown> {
