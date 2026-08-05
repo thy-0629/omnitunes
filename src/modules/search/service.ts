@@ -279,9 +279,10 @@ export function scoreGroup(
   }
 
   if (!qualifiedQuery && artistClauseMatches(group.songWork.artists, query)) {
-    // A reliable artist field is meaningful for artist-only searches, but an
+    // A reliable artist field outranks every non-exact title-substring tier
+    // (including bounded source, duration, and quality bonuses), while an
     // exact title remains the primary signal.
-    score += 110;
+    score += 166;
   }
 
   if (!qualifiedQuery && groupHasPublisherMatch(group, query)) {

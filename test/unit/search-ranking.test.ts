@@ -94,6 +94,20 @@ describe('scoreGroup', () => {
     );
   });
 
+  it('ranks a reliable artist match above an ordinary title-substring result for a pure artist query', () => {
+    const artistMatch = group('Starlight', 'Aurora', null);
+    const unrelatedTitleHit = group('Aurora Bright Skies', 'Unrelated Creator', {
+      playCount: 10_000_000_000,
+      interactionCount: 10_000_000_000,
+      isOfficialPublisher: true,
+    }, 2);
+    const query = 'Aurora';
+
+    expect(scoreGroup(artistMatch, query, canonicalTitle(query))).toBeGreaterThan(
+      scoreGroup(unrelatedTitleHit, query, canonicalTitle(query)),
+    );
+  });
+
   it('prioritizes explicit title and artist clauses without substring artist matches', () => {
     const splitMetadataMatch = group('Song', 'Artist', null);
     const wholeTitleCandidate = group('Song - Artist', 'The Songwriter', {

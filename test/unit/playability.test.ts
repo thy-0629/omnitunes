@@ -471,7 +471,11 @@ describe('PlaybackOrchestrator playability feedback', () => {
       const refreshedSources = refreshed.results[0]!.recordings
         .flatMap((recording) => recording.sourceItems.map((item) => item.source));
 
-      expect(refreshedSources).toEqual(['bilibili']);
+      expect(refreshedSources.sort()).toEqual(['bilibili', 'open_source']);
+      expect(refreshed.results[0]!.recordings
+        .flatMap((recording) => recording.sourceItems)
+        .find((item) => item.source === 'open_source')!.playability)
+        .toMatchObject({ status: 'unavailable' });
       expect(streamAdapter.search).toHaveBeenCalledTimes(2);
       expect(embedAdapter.search).toHaveBeenCalledTimes(2);
       mountedSearch.close();
