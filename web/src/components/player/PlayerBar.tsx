@@ -44,16 +44,41 @@ export function PlayerBar() {
   const progressRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [favoritePending, setFavoritePending] = useState(false);
+  const [favoriteFeedback, setFavoriteFeedback] = useState<string | null>(null);
+  const favoriteReadGeneration = useRef(0);
   const navigate = useNavigate();
 
+  const refreshFavorite = async (songWorkId: string) => {
+    const readGeneration = ++favoriteReadGeneration.current;
+    try {
+      const collections = await getCollections();
+      if (
+        readGeneration !== favoriteReadGeneration.current ||
+        songWorkId !== usePlayerStore.getState().songWork?.id
+      ) {
+        return false;
+      }
+      setLiked(collections.items.some((item) => item.songWorkId === songWorkId));
+      return true;
+    } catch {
+      if (
+        readGeneration === favoriteReadGeneration.current &&
+        songWorkId === usePlayerStore.getState().songWork?.id
+      ) {
+        setLiked(false);
+      }
+      return false;
+    }
+  };
+
   useEffect(() => {
+    setLiked(false);
+    setFavoriteFeedback(null);
     if (!songWork) {
-      setLiked(false);
       return;
     }
-    getCollections()
-      .then((c) => setLiked(c.items.some((i) => i.songWorkId === songWork.id)))
-      .catch(() => setLiked(false));
+    void refreshFavorite(songWork.id);
   }, [songWork?.id]);
 
   if (status === 'idle') return null;
@@ -71,17 +96,32 @@ export function PlayerBar() {
   };
 
   const handleLike = async () => {
-    if (!songWork) return;
+    if (!songWork || favoritePending) return;
+    const songWorkId = songWork.id;
+    const shouldRemove = liked;
+    setFavoritePending(true);
+    setFavoriteFeedback(null);
     try {
-      if (liked) {
-        await removeCollection(songWork.id);
-        setLiked(false);
+      if (shouldRemove) {
+        await removeCollection(songWorkId);
       } else {
-        await addCollection(songWork.id);
-        setLiked(true);
+        await addCollection(songWorkId);
       }
-    } catch {
-      // ignore
+      if (songWorkId === usePlayerStore.getState().songWork?.id) {
+        setLiked(!shouldRemove);
+      }
+    } catch (err) {
+      const status = typeof err === 'object' && err !== null && 'status' in err ? err.status : undefined;
+      if (status === 404 || status === 409) {
+        const refreshed = await refreshFavorite(songWorkId);
+        if (songWorkId === usePlayerStore.getState().songWork?.id) {
+          setFavoriteFeedback(refreshed ? '收藏状态已刷新' : '收藏状态刷新失败，请重试。');
+        }
+      } else if (songWorkId === usePlayerStore.getState().songWork?.id) {
+        setFavoriteFeedback('收藏操作失败，请重试。');
+      }
+    } finally {
+      setFavoritePending(false);
     }
   };
 
@@ -149,7 +189,7 @@ export function PlayerBar() {
                 {status === 'error'
                   ? error
                   : isEmbed
-                    ? '嵌入播放器没有可靠结束事件，请手动点下一首'
+                    ? '请显示视频并使用播放器内的播放/暂停控件。'
                     : songWork?.artists}
               </div>
             </button>
@@ -190,6 +230,7 @@ export function PlayerBar() {
                   liked ? 'text-primary' : 'text-muted-foreground'
                 }`}
                 onClick={() => void handleLike()}
+                disabled={favoritePending}
                 aria-label={liked ? '取消喜欢' : '喜欢'}
               >
                 <Heart className={`h-[18px] w-[18px] ${liked ? 'fill-current' : ''}`} />
@@ -208,6 +249,10 @@ export function PlayerBar() {
                   <RefreshCw className="h-3.5 w-3.5" />
                   重试
                 </button>
+              ) : isEmbed ? (
+                <span className="px-2 text-xs text-muted-foreground" aria-label="请使用视频播放器内的播放暂停控件">
+                  请使用视频播放器
+                </span>
               ) : (
                 <button
                   type="button"
@@ -242,6 +287,11 @@ export function PlayerBar() {
                 <Square className="h-4 w-4 fill-current" />
               </button>
             </div>
+            {favoriteFeedback && (
+              <p className="absolute bottom-0 left-0 right-0 text-center text-[11px] text-muted-foreground" role="status">
+                {favoriteFeedback}
+              </p>
+            )}
           </div>
         )}
 
@@ -276,6 +326,8 @@ export function PlayerBar() {
                     liked ? 'text-primary' : 'text-muted-foreground'
                   }`}
                   onClick={() => void handleLike()}
+                  disabled={favoritePending}
+                  aria-label={liked ? '取消喜欢' : '喜欢'}
                 >
                   <Heart className={`h-6 w-6 ${liked ? 'fill-current' : ''}`} />
                 </button>
@@ -306,7 +358,7 @@ export function PlayerBar() {
 
               {isEmbed && (
                 <div className="text-center text-xs text-muted-foreground">
-                  嵌入播放器没有可靠结束事件，请手动点下一首
+                  请显示视频并使用播放器内的播放/暂停控件。
                 </div>
               )}
 
@@ -314,7 +366,8 @@ export function PlayerBar() {
                 <button
                   type="button"
                   className="apple-btn p-2 text-muted-foreground/50"
-                  aria-label="随机"
+                  aria-label="随机（暂不支持）"
+                  title="随机（暂不支持）"
                   disabled
                 >
                   <Shuffle className="h-5 w-5" />
@@ -322,7 +375,8 @@ export function PlayerBar() {
                 <button
                   type="button"
                   className="apple-btn p-2 text-muted-foreground/50"
-                  aria-label="上一首"
+                  aria-label="上一首（暂不支持）"
+                  title="上一首（暂不支持）"
                   disabled
                 >
                   <SkipBack className="h-7 w-7 fill-current" />
@@ -339,6 +393,10 @@ export function PlayerBar() {
                   >
                     <RefreshCw className="h-8 w-8" />
                   </button>
+                ) : isEmbed ? (
+                  <span className="flex h-16 items-center px-2 text-center text-xs text-muted-foreground">
+                    请使用视频播放器
+                  </span>
                 ) : (
                   <button
                     type="button"
@@ -364,7 +422,8 @@ export function PlayerBar() {
                 <button
                   type="button"
                   className="apple-btn p-2 text-muted-foreground/50"
-                  aria-label="循环"
+                  aria-label="循环（暂不支持）"
+                  title="循环（暂不支持）"
                   disabled
                 >
                   <Repeat className="h-5 w-5" />
@@ -407,6 +466,12 @@ export function PlayerBar() {
                     className="h-1 flex-1 cursor-pointer accent-primary"
                   />
                 </div>
+              )}
+
+              {favoriteFeedback && (
+                <p className="text-center text-xs text-muted-foreground" role="status">
+                  {favoriteFeedback}
+                </p>
               )}
 
               <button
