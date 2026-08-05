@@ -34,6 +34,12 @@ export interface SearchParams {
   hints?: Record<string, unknown>;
 }
 
+export interface SourceQualityMetadata {
+  playCount?: number;
+  interactionCount?: number;
+  isOfficialPublisher?: boolean;
+}
+
 export interface RawHit {
   /** unique within this adapter (becomes SourceItem.externalId). */
   externalId: string;
@@ -43,7 +49,7 @@ export interface RawHit {
   thumbnailUrl?: string;
   publisher?: string;
   /** adapter-specific metadata, e.g. youtube videoId, local file mtime. */
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> & { quality?: SourceQualityMetadata };
 }
 
 export type PlayOptionType = 'embed' | 'stream' | 'local';

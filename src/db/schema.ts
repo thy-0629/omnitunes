@@ -21,6 +21,7 @@
  */
 import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { relations, sql } from 'drizzle-orm';
+import type { SourceQualityMetadata } from '../modules/sources/types.js';
 
 // -----------------------------------------------------------------------------
 // content layer
@@ -89,6 +90,8 @@ export const sourceItems = sqliteTable(
     url: text('url'),
     /** thumbnail URL. */
     thumbnailUrl: text('thumbnail_url'),
+    /** source popularity and publisher-quality signals, normalized from adapter metadata. */
+    qualityMetadata: text('quality_metadata', { mode: 'json' }).$type<SourceQualityMetadata | null>(),
     /** when this entry was first observed. Used for 30-day refresh policy. */
     fetchedAt: integer('fetched_at').notNull().default(sql`(unixepoch() * 1000)`),
     /** true after a soft delete; row is preserved for audit. */

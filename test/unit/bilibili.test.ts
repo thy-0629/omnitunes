@@ -71,7 +71,11 @@ describe('parseSearchResults', () => {
       thumbnailUrl: 'https://i0.hdslb.com/bfs/archive/abc.jpg',
       publisher: '杰威尔音乐',
     });
-    expect(hits[0]!.metadata).toMatchObject({ bvid: 'BV1xx411c7mD', aid: 12345 });
+    expect(hits[0]!.metadata).toMatchObject({
+      bvid: 'BV1xx411c7mD',
+      aid: 12345,
+      quality: { playCount: 999999, interactionCount: 1234 },
+    });
   });
 
   it('returns [] for malformed payloads', () => {

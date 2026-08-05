@@ -143,7 +143,7 @@ export class UnifiedSearchService {
   }
 }
 
-function scoreGroup(
+export function scoreGroup(
   group: SearchResultGroup,
   query: string,
   queryClean: string,
@@ -153,17 +153,32 @@ function scoreGroup(
   const queryLower = query.toLowerCase();
   let score = 0;
 
-  if (titleClean === queryClean) {
-    score += 100;
+  const exactTitle = queryClean.length > 0 && titleClean === queryClean;
+  if (exactTitle) {
+    // This text-match tier deliberately exceeds every possible quality bonus.
+    score += 200;
   } else if (titleClean.includes(queryClean) && queryClean.length >= 2) {
-    score += 60;
+    score += 80;
   } else if (queryClean.includes(titleClean) && titleClean.length >= 2) {
-    score += 20;
+    score += 30;
   }
 
   // strongest signal: raw title contains the query (handles "歌手《歌名》" / "歌手 - 歌名 MV")
-  if (titleLower.includes(queryLower)) {
-    score += 80;
+  if (!exactTitle && queryLower.length > 0 && titleLower.includes(queryLower)) {
+    score += 40;
+  }
+
+  const artistLower = group.songWork.artists.toLowerCase();
+  const artistTokens = new Set(queryLower.match(/[\p{L}\p{N}]{2,}/gu) ?? []);
+  let matchingArtistTokens = 0;
+  for (const token of artistTokens) {
+    if (artistLower.includes(token)) {
+      matchingArtistTokens += 1;
+      score += 24;
+    }
+  }
+  if (matchingArtistTokens > 0 && titleClean.length >= 2 && queryClean.includes(titleClean)) {
+    score += 60;
   }
 
   // distinct sources bonus, capped so playlists don't dominate real songs
@@ -185,5 +200,25 @@ function scoreGroup(
     score -= 50;
   }
 
+  score += bestSourceQualityBonus(group);
+
   return score;
+}
+
+function bestSourceQualityBonus(group: SearchResultGroup): number {
+  let best = 0;
+  for (const recording of group.recordings) {
+    for (const sourceItem of recording.sourceItems) {
+      const quality = sourceItem.qualityMetadata;
+      if (!quality) continue;
+      const popularity = Math.min(
+        12,
+        Math.log10(Math.max(0, quality.playCount ?? 0) + 1) * 2 +
+          Math.log10(Math.max(0, quality.interactionCount ?? 0) + 1),
+      );
+      const sourceQuality = Math.min(20, popularity + (quality.isOfficialPublisher ? 4 : 0));
+      best = Math.max(best, sourceQuality);
+    }
+  }
+  return best;
 }

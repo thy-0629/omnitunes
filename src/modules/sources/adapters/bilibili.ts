@@ -306,8 +306,10 @@ export function parseSearchResults(json: unknown): RawHit[] {
       metadata: {
         bvid: raw.bvid,
         aid: typeof raw.aid === 'number' ? raw.aid : undefined,
-        play: typeof raw.play === 'number' ? raw.play : undefined,
-        videoReview: typeof raw.video_review === 'number' ? raw.video_review : undefined,
+        quality: {
+          playCount: typeof raw.play === 'number' ? raw.play : undefined,
+          interactionCount: typeof raw.video_review === 'number' ? raw.video_review : undefined,
+        },
       },
     });
   }

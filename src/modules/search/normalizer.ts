@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import type { DbClient } from '../../db/client.js';
 import { recordings, songWorks, sourceItems } from '../../db/schema.js';
-import type { RawHit, SourceId } from '../sources/types.js';
+import type { RawHit, SourceId, SourceQualityMetadata } from '../sources/types.js';
 
 /** One raw hit tagged with the source it came from. */
 export interface NormalizerInput {
@@ -159,6 +159,7 @@ export class Normalizer {
     tx: Tx,
     { sourceId, hit, recordingId }: { sourceId: SourceId; hit: RawHit; recordingId: string },
   ): NormalizedEntry['sourceItem'] {
+    const qualityMetadata = sanitizeQualityMetadata(hit.metadata?.quality);
     const existing = tx
       .select()
       .from(sourceItems)
@@ -175,6 +176,7 @@ export class Normalizer {
           publisher: hit.publisher ?? null,
           thumbnailUrl: hit.thumbnailUrl ?? null,
           url: (hit.metadata?.['url'] as string | undefined) ?? null,
+          qualityMetadata,
           fetchedAt: Date.now(),
           deletedAt: null,
         })
@@ -194,6 +196,7 @@ export class Normalizer {
         publisher: hit.publisher ?? null,
         thumbnailUrl: hit.thumbnailUrl ?? null,
         url: (hit.metadata?.['url'] as string | undefined) ?? null,
+        qualityMetadata,
       })
       .returning()
       .get();
@@ -284,4 +287,26 @@ function stripCommonSuffixes(s: string): string {
 function extractFingerprint(hit: RawHit): string | null {
   const fp = hit.metadata?.['fingerprint'];
   return typeof fp === 'string' && fp.length > 0 ? fp : null;
+}
+
+function sanitizeQualityMetadata(value: unknown): SourceQualityMetadata | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const raw = value as Record<string, unknown>;
+  const quality: SourceQualityMetadata = {};
+  if (typeof raw['playCount'] === 'number' && Number.isFinite(raw['playCount']) && raw['playCount'] >= 0) {
+    quality.playCount = raw['playCount'];
+  }
+  if (
+    typeof raw['interactionCount'] === 'number' &&
+    Number.isFinite(raw['interactionCount']) &&
+    raw['interactionCount'] >= 0
+  ) {
+    quality.interactionCount = raw['interactionCount'];
+  }
+  if (typeof raw['isOfficialPublisher'] === 'boolean') {
+    quality.isOfficialPublisher = raw['isOfficialPublisher'];
+  }
+
+  return Object.keys(quality).length > 0 ? quality : null;
 }
