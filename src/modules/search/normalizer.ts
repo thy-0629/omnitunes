@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import type { DbClient } from '../../db/client.js';
 import { recordings, songWorks, sourceItems } from '../../db/schema.js';
-import type { RawHit, SourceId, SourceQualityMetadata } from '../sources/types.js';
+import type { RawHit, SourceAttributionMetadata, SourceId, SourceQualityMetadata } from '../sources/types.js';
 
 /** One raw hit tagged with the source it came from. */
 export interface NormalizerInput {
@@ -160,6 +160,7 @@ export class Normalizer {
     { sourceId, hit, recordingId }: { sourceId: SourceId; hit: RawHit; recordingId: string },
   ): NormalizedEntry['sourceItem'] {
     const qualityMetadata = sanitizeQualityMetadata(hit.metadata?.quality);
+    const attributionMetadata = readAttributionMetadata(hit.metadata?.attribution);
     const existing = tx
       .select()
       .from(sourceItems)
@@ -177,6 +178,7 @@ export class Normalizer {
           thumbnailUrl: hit.thumbnailUrl ?? null,
           url: (hit.metadata?.['url'] as string | undefined) ?? null,
           qualityMetadata,
+          attributionMetadata,
           fetchedAt: Date.now(),
           deletedAt: null,
         })
@@ -197,6 +199,7 @@ export class Normalizer {
         thumbnailUrl: hit.thumbnailUrl ?? null,
         url: (hit.metadata?.['url'] as string | undefined) ?? null,
         qualityMetadata,
+        attributionMetadata,
       })
       .returning()
       .get();
@@ -309,4 +312,39 @@ function sanitizeQualityMetadata(value: unknown): SourceQualityMetadata | null {
   }
 
   return Object.keys(quality).length > 0 ? quality : null;
+}
+
+function readAttributionMetadata(value: unknown): SourceAttributionMetadata | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const attribution = value as Record<string, unknown>;
+  const license = attribution['license'];
+  const licenseUrl = attribution['licenseUrl'];
+  const sourceUrl = attribution['sourceUrl'];
+  const creator = attribution['creator'];
+
+  if (
+    !isNonEmptyString(license) ||
+    !isNonEmptyString(licenseUrl) ||
+    !isNonEmptyString(sourceUrl) ||
+    !isNonEmptyString(creator) ||
+    !isHttpsUrl(licenseUrl) ||
+    !isHttpsUrl(sourceUrl)
+  ) {
+    return null;
+  }
+
+  return { license, licenseUrl, sourceUrl, creator };
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
 }

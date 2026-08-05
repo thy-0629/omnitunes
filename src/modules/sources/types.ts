@@ -40,6 +40,13 @@ export interface SourceQualityMetadata {
   isOfficialPublisher?: boolean;
 }
 
+export interface SourceAttributionMetadata {
+  license: string;
+  licenseUrl: string;
+  sourceUrl: string;
+  creator: string;
+}
+
 export interface RawHit {
   /** unique within this adapter (becomes SourceItem.externalId). */
   externalId: string;
@@ -49,7 +56,10 @@ export interface RawHit {
   thumbnailUrl?: string;
   publisher?: string;
   /** adapter-specific metadata, e.g. youtube videoId, local file mtime. */
-  metadata?: Record<string, unknown> & { quality?: SourceQualityMetadata };
+  metadata?: Record<string, unknown> & {
+    quality?: SourceQualityMetadata;
+    attribution?: SourceAttributionMetadata;
+  };
 }
 
 export type PlayOptionType = 'embed' | 'stream' | 'local';

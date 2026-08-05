@@ -10,6 +10,8 @@ interface SourceStats {
   totalCalls: number;
   successCalls: number;
   totalLatencyMs: number;
+  playabilityCalls: number;
+  playabilitySuccesses: number;
   lastErrorCode?: string;
   lastErrorAt?: number;
   lastErrorMessage?: string;
@@ -40,6 +42,8 @@ export class SourceRegistry {
       totalCalls: 0,
       successCalls: 0,
       totalLatencyMs: 0,
+      playabilityCalls: 0,
+      playabilitySuccesses: 0,
     });
   }
 
@@ -59,6 +63,7 @@ export class SourceRegistry {
     stats: {
       totalCalls: number;
       successRate: number;
+      playabilitySuccessRate: number | null;
       avgLatencyMs: number;
       lastErrorCode?: string;
       lastErrorAt?: number;
@@ -67,6 +72,9 @@ export class SourceRegistry {
     return this.list().map((a) => {
       const s = this.stats.get(a.id)!;
       const successRate = s.totalCalls === 0 ? 1 : s.successCalls / s.totalCalls;
+      const playabilitySuccessRate = s.playabilityCalls === 0
+        ? null
+        : s.playabilitySuccesses / s.playabilityCalls;
       const avgLatencyMs = s.totalCalls === 0 ? 0 : s.totalLatencyMs / s.totalCalls;
       return {
         id: a.id,
@@ -75,6 +83,7 @@ export class SourceRegistry {
         stats: {
           totalCalls: s.totalCalls,
           successRate,
+          playabilitySuccessRate,
           avgLatencyMs,
           lastErrorCode: s.lastErrorCode,
           lastErrorAt: s.lastErrorAt,
@@ -117,6 +126,13 @@ export class SourceRegistry {
       this.recordResult(id, false, Date.now() - start, err);
       throw err;
     }
+  }
+
+  recordPlayability(id: SourceId, ok: boolean): void {
+    const s = this.stats.get(id);
+    if (!s) return;
+    s.playabilityCalls += 1;
+    if (ok) s.playabilitySuccesses += 1;
   }
 
   /**

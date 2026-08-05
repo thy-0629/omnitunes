@@ -51,6 +51,18 @@ describe('SourceRegistry', () => {
       expect(desc[0]?.id).toBe('mock');
       expect(desc[0]?.stats.totalCalls).toBe(0);
       expect(desc[0]?.stats.successRate).toBe(1);
+      expect(desc[0]?.stats.playabilitySuccessRate).toBeNull();
+    });
+
+    it('tracks playability success independently from adapter calls', async () => {
+      registry.register(new MockAdapter());
+      await registry.instrumentedSearch('mock', { query: 'test' });
+      registry.recordPlayability('mock', true);
+      registry.recordPlayability('mock', false);
+
+      const stats = registry.describe()[0]!.stats;
+      expect(stats.successRate).toBe(1);
+      expect(stats.playabilitySuccessRate).toBe(0.5);
     });
   });
 

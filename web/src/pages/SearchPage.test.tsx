@@ -53,6 +53,7 @@ const searchResult: UnifiedSearchResult = {
               url: null,
               thumbnailUrl: null,
               qualityMetadata: { playCount: 1_000_000, isOfficialPublisher: true },
+              attributionMetadata: null,
             },
             {
               id: 'source-2',
@@ -63,6 +64,7 @@ const searchResult: UnifiedSearchResult = {
               url: null,
               thumbnailUrl: null,
               qualityMetadata: null,
+              attributionMetadata: null,
             },
           ],
         },

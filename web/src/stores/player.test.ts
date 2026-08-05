@@ -27,6 +27,7 @@ const embedOption: RankedPlayOption = {
     url: null,
     thumbnailUrl: null,
     qualityMetadata: null,
+    attributionMetadata: null,
   },
   option: { type: 'embed', payload: 'BV1xx' },
   playableOptionId: 'option-1',

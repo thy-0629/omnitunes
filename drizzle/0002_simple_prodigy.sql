@@ -1,0 +1,1 @@
+ALTER TABLE `source_items` ADD `attribution_metadata` text;

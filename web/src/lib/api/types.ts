@@ -32,6 +32,13 @@ export interface SourceQualityMetadata {
   isOfficialPublisher?: boolean;
 }
 
+export interface SourceAttributionMetadata {
+  license: string;
+  licenseUrl: string;
+  sourceUrl: string;
+  creator: string;
+}
+
 export interface SourceItem {
   id: string;
   recordingId: string;
@@ -41,6 +48,7 @@ export interface SourceItem {
   url: string | null;
   thumbnailUrl: string | null;
   qualityMetadata: SourceQualityMetadata | null;
+  attributionMetadata: SourceAttributionMetadata | null;
 }
 
 export interface SearchResultGroup {
@@ -168,6 +176,7 @@ export interface SourceDescription {
   stats: {
     totalCalls: number;
     successRate: number;
+    playabilitySuccessRate: number | null;
     avgLatencyMs: number;
     lastErrorCode?: string;
     lastErrorAt?: number;

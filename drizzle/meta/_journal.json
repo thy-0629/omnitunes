@@ -15,6 +15,13 @@
       "when": 1785919472566,
       "tag": "0001_medical_shiver_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785925946429,
+      "tag": "0002_simple_prodigy",
+      "breakpoints": true
     }
   ]
 }
