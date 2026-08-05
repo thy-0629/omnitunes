@@ -108,16 +108,18 @@ export function PlayerBar() {
         await addCollection(songWorkId);
       }
       if (songWorkId === usePlayerStore.getState().songWork?.id) {
+        favoriteReadGeneration.current += 1;
         setLiked(!shouldRemove);
       }
     } catch (err) {
       const status = typeof err === 'object' && err !== null && 'status' in err ? err.status : undefined;
-      if (status === 404 || status === 409) {
+      const isActiveSong = songWorkId === usePlayerStore.getState().songWork?.id;
+      if (isActiveSong && (status === 404 || status === 409)) {
         const refreshed = await refreshFavorite(songWorkId);
         if (songWorkId === usePlayerStore.getState().songWork?.id) {
           setFavoriteFeedback(refreshed ? '收藏状态已刷新' : '收藏状态刷新失败，请重试。');
         }
-      } else if (songWorkId === usePlayerStore.getState().songWork?.id) {
+      } else if (isActiveSong) {
         setFavoriteFeedback('收藏操作失败，请重试。');
       }
     } finally {

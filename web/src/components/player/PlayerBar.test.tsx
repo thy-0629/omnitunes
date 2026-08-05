@@ -138,6 +138,16 @@ describe('PlayerBar stream and favorite controls', () => {
     expect(usePlayerStore.getState().isPaused).toBe(true);
   });
 
+  it('toggles local playback from the collapsed pause button', () => {
+    setStreamSong();
+    usePlayerStore.setState({ option: { ...embedOption, option: { type: 'local', payload: 'local-file' } } });
+    render(<MemoryRouter><PlayerBar /></MemoryRouter>);
+
+    fireEvent.click(screen.getByTitle('播放/暂停'));
+
+    expect(usePlayerStore.getState().isPaused).toBe(true);
+  });
+
   it('keeps the current song favorite state when an older collection read resolves last', async () => {
     const firstRead = deferred<{ items: CollectionEntry[]; total: number }>();
     const secondRead = deferred<{ items: CollectionEntry[]; total: number }>();
@@ -167,6 +177,44 @@ describe('PlayerBar stream and favorite controls', () => {
     expect(screen.getByRole('button', { name: '喜欢' })).toBeDisabled();
   });
 
+  it('does not let a collection read started before a successful add overwrite the new favorite state', async () => {
+    const staleRead = deferred<{ items: CollectionEntry[]; total: number }>();
+    vi.mocked(getCollections).mockReturnValueOnce(staleRead.promise);
+    vi.mocked(addCollection).mockResolvedValueOnce({ collection: {} });
+    setStreamSong();
+    render(<MemoryRouter><PlayerBar /></MemoryRouter>);
+
+    fireEvent.click(screen.getByRole('button', { name: '喜欢' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: '取消喜欢' })).toBeVisible());
+
+    await act(async () => {
+      staleRead.resolve({ items: [], total: 0 });
+      await staleRead.promise;
+    });
+
+    expect(screen.getByRole('button', { name: '取消喜欢' })).toBeVisible();
+  });
+
+  it('keeps the active song read valid when a previous-song conflict arrives late', async () => {
+    const removeA = deferred<{ ok: true }>();
+    const readB = deferred<{ items: CollectionEntry[]; total: number }>();
+    vi.mocked(removeCollection).mockReturnValueOnce(removeA.promise);
+    vi.mocked(getCollections)
+      .mockResolvedValueOnce({ items: [collection('song-a')], total: 1 })
+      .mockReturnValueOnce(readB.promise)
+      .mockResolvedValueOnce({ items: [], total: 0 });
+    setStreamSong('song-a');
+    render(<MemoryRouter><PlayerBar /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('button', { name: '取消喜欢' })).toBeVisible());
+
+    fireEvent.click(screen.getByRole('button', { name: '取消喜欢' }));
+    act(() => setStreamSong('song-b'));
+    removeA.reject(Object.assign(new Error('conflict'), { status: 409 }));
+    readB.resolve({ items: [collection('song-b')], total: 1 });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: '取消喜欢' })).toBeVisible());
+  });
+
   it('refreshes favorite state after a conflict response', async () => {
     vi.mocked(addCollection).mockRejectedValueOnce(Object.assign(new Error('conflict'), { status: 409 }));
     vi.mocked(getCollections)
@@ -194,5 +242,15 @@ describe('PlayerBar stream and favorite controls', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: '喜欢' })).toBeVisible());
     expect(screen.getByRole('status')).toHaveTextContent('收藏状态已刷新');
+  });
+
+  it('announces a generic favorite API failure', async () => {
+    vi.mocked(addCollection).mockRejectedValueOnce(new Error('offline'));
+    setStreamSong();
+    render(<MemoryRouter><PlayerBar /></MemoryRouter>);
+
+    fireEvent.click(screen.getByRole('button', { name: '喜欢' }));
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('收藏操作失败，请重试。'));
   });
 });
