@@ -3,6 +3,8 @@ import type { SourceId } from '@/lib/api/types';
 
 const SOURCE_META: Record<SourceId, { label: string; className: string }> = {
   open_source: { label: 'Archive', className: 'bg-emerald-600/80 text-white border-transparent' },
+  openverse: { label: 'Openverse', className: 'bg-violet-600/80 text-white border-transparent' },
+  wikimedia: { label: 'Commons', className: 'bg-cyan-700/80 text-white border-transparent' },
   bilibili: { label: 'B站', className: 'bg-pink-500/80 text-white border-transparent' },
   local: { label: '本地', className: 'bg-sky-600/80 text-white border-transparent' },
   youtube: { label: 'YouTube', className: 'bg-red-600/80 text-white border-transparent' },

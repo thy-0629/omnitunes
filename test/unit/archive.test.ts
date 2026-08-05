@@ -125,12 +125,29 @@ describe('ArchiveOrgAdapter', () => {
     return fetchMock;
   }
 
-  it('search() maps response docs to hits', async () => {
-    const fetchMock = stubFetchOnce({
-      response: {
-        docs: [{ identifier: 'gd77', title: 'Scarlet Begonias', creator: 'Grateful Dead' }],
-      },
-    });
+  it('search() maps only candidates whose metadata contains playable audio', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({
+          response: {
+            docs: [
+              { identifier: 'gd77', title: 'Scarlet Begonias', creator: 'Grateful Dead' },
+              { identifier: 'notes-only', title: 'Concert notes', creator: 'Archivist' },
+            ],
+          },
+        }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ files: [{ name: 'scarlet.mp3', format: 'VBR MP3' }] }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ files: [{ name: 'notes.txt', format: 'Text' }] }), {
+          status: 200,
+        }),
+      );
     const adapter = new ArchiveOrgAdapter({ fetchFn: fetchMock as unknown as typeof fetch });
     const hits = await adapter.search({ query: 'scarlet', limit: 5 });
 
@@ -140,6 +157,49 @@ describe('ArchiveOrgAdapter', () => {
     expect(calledUrl).toContain('advancedsearch.php');
     expect(calledUrl).toContain('rows=5');
     expect(calledUrl).toContain(encodeURIComponent('title:("scarlet") AND mediatype:(audio)'));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    await adapter.getPlayOptions('gd77');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not run the broad fallback when title candidates all lack audio', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({
+          response: { docs: [{ identifier: 'text-only', title: 'Text only' }] },
+        }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ files: [{ name: 'readme.txt', format: 'Text' }] }), {
+          status: 200,
+        }),
+      );
+    const adapter = new ArchiveOrgAdapter({ fetchFn: fetchMock as unknown as typeof fetch });
+
+    await expect(adapter.search({ query: 'text' })).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('checks metadata for at most eight candidates', async () => {
+    const docs = Array.from({ length: 12 }, (_, index) => ({
+      identifier: `item-${index}`,
+      title: `Item ${index}`,
+    }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ response: { docs } }), { status: 200 }),
+      )
+      .mockImplementation(async () => new Response(JSON.stringify({
+        files: [{ name: 'audio.mp3', format: 'VBR MP3' }],
+      }), { status: 200 }));
+    const adapter = new ArchiveOrgAdapter({ fetchFn: fetchMock as unknown as typeof fetch });
+
+    const hits = await adapter.search({ query: 'item', limit: 20 });
+    expect(hits).toHaveLength(8);
+    expect(fetchMock).toHaveBeenCalledTimes(9);
   });
 
   it('getPlayOptions() returns stream options from metadata files', async () => {

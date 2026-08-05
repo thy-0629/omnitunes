@@ -8,6 +8,8 @@ import { LocalAdapter } from './adapters/local.js';
 import { YouTubeAdapter } from './adapters/youtube.js';
 import { ArchiveOrgAdapter } from './adapters/archive.js';
 import { BilibiliAdapter } from './adapters/bilibili.js';
+import { OpenverseAdapter } from './adapters/openverse.js';
+import { WikimediaCommonsAdapter } from './adapters/wikimedia.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -40,6 +42,9 @@ export default fp(
 
     // 4. Internet Archive — official keyless API, always on.
     registry.register(new ArchiveOrgAdapter());
+
+    registry.register(new OpenverseAdapter());
+    registry.register(new WikimediaCommonsAdapter());
 
     // 5. Bilibili — keyless web search (WBI-signed) + official iframe embed.
     registry.register(

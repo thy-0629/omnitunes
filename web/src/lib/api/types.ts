@@ -4,7 +4,14 @@
  * these are the stable contract surfaces the UI consumes.
  */
 
-export type SourceId = 'youtube' | 'open_source' | 'local' | 'mock' | 'bilibili';
+export type SourceId =
+  | 'youtube'
+  | 'open_source'
+  | 'openverse'
+  | 'wikimedia'
+  | 'local'
+  | 'mock'
+  | 'bilibili';
 export type PlayOptionType = 'embed' | 'stream' | 'local';
 
 export interface SongWork {

@@ -31,6 +31,8 @@ import { SourceError } from '../types.js';
 const BASE = 'https://archive.org';
 const METADATA_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_STREAM_OPTIONS = 2;
+const MAX_METADATA_CANDIDATES = 8;
+const METADATA_CONCURRENCY = 4;
 
 /** Audio extensions we consider playable, best first. */
 const AUDIO_FORMAT_PREFS: Array<{ ext: RegExp; formatHint: RegExp; priority: number }> = [
@@ -70,7 +72,7 @@ export class ArchiveOrgAdapter implements SourceAdapter {
 
     const json = await this.getJson(url, 'search');
     const hits = parseSearchResponse(json);
-    if (hits.length > 0) return hits;
+    if (hits.length > 0) return this.keepAudioCandidates(hits);
 
     // fallback to fieldless query if title-scoped search returns nothing
     const fallbackQ = `${query} AND mediatype:(audio)`;
@@ -79,7 +81,7 @@ export class ArchiveOrgAdapter implements SourceAdapter {
       `&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=duration` +
       `&rows=${limit}&output=json`;
     const fallbackJson = await this.getJson(fallbackUrl, 'search');
-    return parseSearchResponse(fallbackJson);
+    return this.keepAudioCandidates(parseSearchResponse(fallbackJson));
   }
 
   async getPlayOptions(externalId: string): Promise<PlayOption[]> {
@@ -130,6 +132,18 @@ export class ArchiveOrgAdapter implements SourceAdapter {
     return files;
   }
 
+  private async keepAudioCandidates(hits: RawHit[]): Promise<RawHit[]> {
+    const candidates = hits.slice(0, MAX_METADATA_CANDIDATES);
+    const eligible = await mapWithConcurrency(candidates, METADATA_CONCURRENCY, async (hit) => {
+      try {
+        return (await this.getAudioFiles(hit.externalId)).length > 0 ? hit : null;
+      } catch {
+        return null;
+      }
+    });
+    return eligible.filter((hit): hit is RawHit => hit !== null);
+  }
+
   private async getJson(url: string, what: string): Promise<unknown> {
     let res: Response;
     try {
@@ -162,6 +176,27 @@ export class ArchiveOrgAdapter implements SourceAdapter {
       clearTimeout(timer);
     }
   }
+}
+
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  concurrency: number,
+  fn: (value: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < values.length) {
+      const index = nextIndex++;
+      results[index] = await fn(values[index]!);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, values.length) }, () => worker()),
+  );
+  return results;
 }
 
 // -----------------------------------------------------------------------------

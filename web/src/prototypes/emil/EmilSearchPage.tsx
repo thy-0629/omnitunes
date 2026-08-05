@@ -26,6 +26,8 @@ const SOURCE_FILTERS: Array<{ id: SourceId; label: string }> = [
 const SOURCE_META: Record<SourceId, { label: string; colorClass: string }> = {
   bilibili: { label: 'B站', colorClass: 'bg-pink-500 text-white' },
   open_source: { label: 'Archive', colorClass: 'bg-emerald-600 text-white' },
+  openverse: { label: 'Openverse', colorClass: 'bg-violet-600 text-white' },
+  wikimedia: { label: 'Commons', colorClass: 'bg-cyan-700 text-white' },
   local: { label: '本地', colorClass: 'bg-sky-600 text-white' },
   youtube: { label: 'YouTube', colorClass: 'bg-red-600 text-white' },
   mock: { label: 'Mock', colorClass: 'bg-zinc-500 text-white' },
