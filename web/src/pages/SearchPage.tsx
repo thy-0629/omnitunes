@@ -82,6 +82,8 @@ export function SearchPage() {
   };
 
   const results = result?.results ?? [];
+  const hasCurrentEmptyResult =
+    !loading && !error && result?.query === query.trim() && results.length === 0;
   const playerSongWorkId = usePlayerStore((s) => s.songWork?.id);
 
   return (
@@ -165,7 +167,7 @@ export function SearchPage() {
           {loading &&
             Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-40 w-full rounded-[1.25rem]" />)}
 
-          {!loading && result && results.length === 0 && (
+          {hasCurrentEmptyResult && (
             <div className="apple-card py-12 text-center">
               <p className="text-sm text-muted-foreground">未找到可播放版本</p>
               <p className="mt-1 text-xs text-muted-foreground">可以尝试简化关键词，或切换音源后重试</p>

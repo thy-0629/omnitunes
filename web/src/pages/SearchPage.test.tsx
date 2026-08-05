@@ -215,6 +215,7 @@ describe('SearchPage', () => {
 
   it('shows the verified-playable empty state only after a completed zero-result search', () => {
     useSearchStore.setState({
+      query: '晴天',
       result: { ...searchResult, results: [] },
       loading: false,
     });
@@ -222,5 +223,33 @@ describe('SearchPage', () => {
     render(<SearchPage />);
 
     expect(screen.getByText('未找到可播放版本')).toBeVisible();
+  });
+
+  it('hides a prior empty result as soon as the query changes during debounce', () => {
+    useSearchStore.setState({
+      query: '晴天',
+      result: { ...searchResult, results: [] },
+      loading: false,
+      error: null,
+    });
+
+    render(<SearchPage />);
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '稻香' } });
+
+    expect(screen.queryByText('未找到可播放版本')).not.toBeInTheDocument();
+  });
+
+  it('does not pair a prior empty result with a failed later search', () => {
+    useSearchStore.setState({
+      query: '稻香',
+      result: { ...searchResult, results: [] },
+      loading: false,
+      error: 'Network unavailable',
+    });
+
+    render(<SearchPage />);
+
+    expect(screen.getByText('Network unavailable')).toBeVisible();
+    expect(screen.queryByText('未找到可播放版本')).not.toBeInTheDocument();
   });
 });
