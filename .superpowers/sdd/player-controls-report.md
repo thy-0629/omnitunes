@@ -69,3 +69,30 @@ Result: passed.
 ## Commit
 
 `18ae396 fix(player): clarify controls and favorite state`
+
+## Follow-up race repair
+
+### Red
+
+Added regression coverage for a successful add followed by a stale pre-mutation collection read, and for a delayed conflict from song A arriving after the player switches to song B while B's favorite read is still pending. The focused test command failed with both regressions as expected: the stale read reset the successful add, and A's reconciliation invalidated B's read. Added local-playback pause coverage and generic failed-favorite status coverage as well.
+
+### Green
+
+Successful favorite mutations now advance the collection-read generation before committing their state, invalidating any read started before the mutation. 404/409 reconciliation only begins while the mutation's song is still active, so a former song cannot invalidate the active song's read.
+
+Verification:
+
+```text
+pnpm --filter omnitunes-web test src/components/player/PlayerBar.test.tsx
+```
+
+Result: 1 file passed, 13 tests passed (the existing React Router v7 future-flag warnings remain).
+
+```text
+pnpm --filter omnitunes-web typecheck
+pnpm --filter omnitunes-web build
+```
+
+Result: both passed; build transformed 1624 modules.
+
+Follow-up code commit: `b68cdaf fix(player): guard favorite state races`.
