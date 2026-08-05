@@ -211,6 +211,34 @@ describe('SearchPage', () => {
     expect(screen.queryByRole('button', { name: /晴天.*B站.*Playback request failed/ })).not.toBeInTheDocument();
   });
 
+  it('replaces a source preflight reason with a later playback failure', () => {
+    useSearchStore.setState({
+      result: {
+        ...searchResult,
+        results: [{
+          ...searchResult.results[0]!,
+          recordings: [{
+            ...searchResult.results[0]!.recordings[0]!,
+            sourceItems: [{
+              ...searchResult.results[0]!.recordings[0]!.sourceItems[0]!,
+              playability: { status: 'unavailable', message: 'Preflight timed out' },
+            }],
+          }],
+        }],
+      },
+    });
+    usePlayerStore.setState({
+      status: 'error',
+      error: 'Playback request failed',
+      failedSourceItemId: 'source-1',
+    });
+
+    render(<SearchPage />);
+
+    expect(screen.getByText('Playback request failed')).toBeVisible();
+    expect(screen.queryByText('Preflight timed out')).not.toBeInTheDocument();
+  });
+
   it('does not render a later song-level error on an earlier failed source row', async () => {
     vi.mocked(startPlay).mockRejectedValue(new Error('Source A failed'));
     await usePlayerStore.getState().playSourceItem('source-1', searchResult.results[0]!.songWork);

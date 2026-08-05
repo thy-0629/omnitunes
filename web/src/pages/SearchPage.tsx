@@ -292,7 +292,8 @@ export function SearchPage() {
                                     .filter(Boolean)
                                     .join(' · ')}
                                 </span>
-                                {si.playability?.status === 'unavailable' && (
+                                {si.playability?.status === 'unavailable' &&
+                                  !(failedSourceItemId === si.id && playerError) && (
                                   <span className="block text-xs text-destructive">
                                     当前无法播放{si.playability.message ? `：${si.playability.message}` : ''}
                                   </span>

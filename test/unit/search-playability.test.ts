@@ -88,4 +88,64 @@ describe('UnifiedSearchService search playability', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toMatchObject({ source: 'open_source', code: 'timeout' });
   });
+
+  it('marks unpreflighted and inconclusive hits as unknown instead of unavailable', async () => {
+    const { adapter, normalizer } = createArchiveSearch();
+    const hits = Array.from({ length: 10 }, (_, index) => ({
+      externalId: `archive-hit-${index}`,
+      title: `Archive Hit ${index}`,
+      artists: 'Artist',
+    }));
+    adapter.search = vi.fn().mockResolvedValue(hits);
+    adapter.getPlayOptions = vi.fn().mockImplementation(async (externalId: string) => (
+      externalId === 'archive-hit-0'
+        ? []
+        : [{ type: 'local', payload: externalId }]
+    ));
+    const registry = new SourceRegistry();
+    registry.register(adapter);
+
+    const result = await new UnifiedSearchService(
+      registry,
+      normalizer,
+      new PlayabilityVerifier({ fetchFn: vi.fn() as unknown as typeof fetch }),
+    ).search({ query: 'Archive Hit' });
+    const sourceItems = result.results[0]!.recordings[0]!.sourceItems;
+
+    expect(sourceItems.find((item) => item.externalId === 'archive-hit-0')!.playability)
+      .toEqual({ status: 'unknown' });
+    expect(sourceItems.find((item) => item.externalId === 'archive-hit-8')!.playability)
+      .toEqual({ status: 'unknown' });
+    expect(sourceItems.find((item) => item.externalId === 'archive-hit-9')!.playability)
+      .toEqual({ status: 'unknown' });
+    expect(sourceItems.find((item) => item.externalId === 'archive-hit-1')!.playability)
+      .toEqual({ status: 'playable' });
+  });
+
+  it('shows one source warning while preserving distinct per-hit preflight failures', async () => {
+    const { adapter, normalizer } = createArchiveSearch();
+    adapter.getPlayOptions = vi.fn().mockImplementation(async (externalId: string) => {
+      const error = externalId === 'archive-hit-1'
+        ? Object.assign(new Error('First option lookup failed'), { code: 'first_failure' })
+        : Object.assign(new Error('Second option lookup failed'), { code: 'second_failure' });
+      throw error;
+    });
+    const registry = new SourceRegistry();
+    registry.register(adapter);
+
+    const result = await new UnifiedSearchService(
+      registry,
+      normalizer,
+      new PlayabilityVerifier({ fetchFn: vi.fn() as unknown as typeof fetch }),
+    ).search({ query: 'Archive Hit' });
+    const sourceItems = result.results[0]!.recordings[0]!.sourceItems;
+
+    expect(result.errors).toEqual([
+      expect.objectContaining({ source: 'open_source', code: 'first_failure', message: 'First option lookup failed' }),
+    ]);
+    expect(sourceItems.find((item) => item.externalId === 'archive-hit-1')!.playability)
+      .toMatchObject({ status: 'unavailable', code: 'first_failure', message: 'First option lookup failed' });
+    expect(sourceItems.find((item) => item.externalId === 'archive-hit-2')!.playability)
+      .toMatchObject({ status: 'unavailable', code: 'second_failure', message: 'Second option lookup failed' });
+  });
 });

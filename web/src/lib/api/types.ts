@@ -47,7 +47,7 @@ export interface SourceAttributionMetadata {
 }
 
 export interface SearchPlayability {
-  status: 'playable' | 'unavailable';
+  status: 'playable' | 'unavailable' | 'unknown';
   code?: string;
   message?: string;
   retryAt?: number;

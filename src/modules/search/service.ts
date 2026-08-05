@@ -27,7 +27,7 @@ export interface SearchResultGroup {
 
 /** Search-only preflight state. This is intentionally never persisted to SourceItem. */
 export interface SearchPlayability {
-  status: 'playable' | 'unavailable';
+  status: 'playable' | 'unavailable' | 'unknown';
   code?: string;
   message?: string;
   retryAt?: number;
@@ -155,7 +155,7 @@ export class UnifiedSearchService {
     const errors: SearchError[] = [];
     const inputs: NormalizerInput[] = [];
     const playabilityBySourceItem = new Map<string, SearchPlayability>();
-    const seenPreflightErrors = new Set<string>();
+    const sourcesWithPreflightWarning = new Set<SourceId>();
     settled.forEach((res, i) => {
       const id = sourcesQueried[i]!;
       if (res.status === 'fulfilled') {
@@ -168,9 +168,8 @@ export class UnifiedSearchService {
             );
           }
           if (outcome.error) {
-            const key = preflightErrorKey(outcome.error);
-            if (!seenPreflightErrors.has(key)) {
-              seenPreflightErrors.add(key);
+            if (!sourcesWithPreflightWarning.has(outcome.error.source)) {
+              sourcesWithPreflightWarning.add(outcome.error.source);
               errors.push(outcome.error);
             }
           }
@@ -204,7 +203,7 @@ export class UnifiedSearchService {
       rec.sourceItems.push({
         ...e.sourceItem,
         playability: playabilityBySourceItem.get(sourceItemKey(e.sourceId, e.sourceItem.externalId))
-          ?? { status: 'unavailable' },
+          ?? { status: 'unknown' },
       });
     }
 
@@ -238,12 +237,6 @@ export class UnifiedSearchService {
 
 function sourceItemKey(source: SourceId, externalId: string): string {
   return JSON.stringify([source, externalId]);
-}
-
-function preflightErrorKey(error: SearchError): string {
-  // retryAt is computed independently for each media URL. It belongs on the
-  // retained source item, not in the source-level banner identity.
-  return JSON.stringify([error.source, error.code, error.message]);
 }
 
 export function scoreGroup(
