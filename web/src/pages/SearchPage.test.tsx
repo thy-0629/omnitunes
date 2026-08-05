@@ -164,6 +164,44 @@ describe('SearchPage', () => {
     }
   });
 
+  it('explains an unavailable source without disabling its play control', () => {
+    useSearchStore.setState({
+      result: {
+        ...searchResult,
+        results: [{
+          ...searchResult.results[0]!,
+          recordings: [{
+            ...searchResult.results[0]!.recordings[0]!,
+            sourceItems: [{
+              ...searchResult.results[0]!.recordings[0]!.sourceItems[0]!,
+              playability: { status: 'unavailable', message: 'Upstream timeout' },
+            }],
+          }],
+        }],
+      },
+    });
+
+    render(<SearchPage />);
+
+    const sourceRow = screen.getByRole('button', { name: /晴天.*Upstream timeout/ });
+    expect(sourceRow).toBeEnabled();
+    expect(within(sourceRow).getByText('当前无法播放：Upstream timeout')).toBeVisible();
+  });
+
+  it('renders the latest play error only on its originating source row', () => {
+    usePlayerStore.setState({
+      status: 'error',
+      error: 'Playback request failed',
+      failedSourceItemId: 'source-2',
+    });
+
+    render(<SearchPage />);
+
+    const failedSourceRow = screen.getByRole('button', { name: /晴天.*本地.*Playback request failed/ });
+    expect(within(failedSourceRow).getByText('Playback request failed')).toHaveAttribute('aria-live', 'polite');
+    expect(screen.queryByRole('button', { name: /晴天.*B站.*Playback request failed/ })).not.toBeInTheDocument();
+  });
+
   it('shows an unknown artist separately from the Bilibili uploader', () => {
     useSearchStore.setState({
       result: {

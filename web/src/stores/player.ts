@@ -19,6 +19,7 @@ interface PlayerState {
   currentQueueItemId: string | null;
   status: PlayerStatus;
   error: string | null;
+  failedSourceItemId: string | null;
   positionSec: number;
   durationSec: number | null;
   isPaused: boolean;
@@ -66,6 +67,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   currentQueueItemId: null,
   status: 'idle',
   error: null,
+  failedSourceItemId: null,
   positionSec: 0,
   durationSec: null,
   isPaused: false,
@@ -75,7 +77,14 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   videoVisible: true,
 
   playSourceItem: async (sourceItemId, songWork, optionId) => {
-    set({ status: 'resolving', error: null, songWork, isPaused: false, currentQueueItemId: null });
+    set({
+      status: 'resolving',
+      error: null,
+      failedSourceItemId: null,
+      songWork,
+      isPaused: false,
+      currentQueueItemId: null,
+    });
     try {
       const { playId, option } = await startPlay({ sourceItemId, optionId });
       set({
@@ -88,7 +97,11 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         videoVisible: true,
       });
     } catch (err) {
-      set({ status: 'error', error: err instanceof Error ? err.message : String(err) });
+      set({
+        status: 'error',
+        error: err instanceof Error ? err.message : String(err),
+        failedSourceItemId: sourceItemId,
+      });
     }
   },
 
@@ -253,6 +266,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       currentQueueItemId: null,
       status: 'idle',
       error: null,
+      failedSourceItemId: null,
       positionSec: 0,
       durationSec: null,
       isPaused: false,

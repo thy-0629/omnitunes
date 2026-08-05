@@ -46,6 +46,13 @@ export interface SourceAttributionMetadata {
   creator: string;
 }
 
+export interface SearchPlayability {
+  status: 'playable' | 'unavailable';
+  code?: string;
+  message?: string;
+  retryAt?: number;
+}
+
 export interface SourceItem {
   id: string;
   recordingId: string;
@@ -56,6 +63,7 @@ export interface SourceItem {
   thumbnailUrl: string | null;
   qualityMetadata: SourceQualityMetadata | null;
   attributionMetadata: SourceAttributionMetadata | null;
+  playability?: SearchPlayability | null;
 }
 
 export interface SearchResultGroup {

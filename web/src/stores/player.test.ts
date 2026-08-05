@@ -51,4 +51,20 @@ describe('usePlayerStore embed visibility', () => {
 
     expect(usePlayerStore.getState().videoVisible).toBe(true);
   });
+
+  it('records the source item that failed to start', async () => {
+    mocks.startPlay.mockRejectedValue(new Error('Source expired'));
+
+    await usePlayerStore.getState().playSourceItem('source-2', {
+      id: 'song-1',
+      title: 'Song',
+      artists: 'Artist',
+    });
+
+    expect(usePlayerStore.getState()).toMatchObject({
+      status: 'error',
+      error: 'Source expired',
+      failedSourceItemId: 'source-2',
+    });
+  });
 });

@@ -85,6 +85,8 @@ export function SearchPage() {
   const hasCurrentEmptyResult =
     !loading && !error && result?.query === query.trim() && results.length === 0;
   const playerSongWorkId = usePlayerStore((s) => s.songWork?.id);
+  const failedSourceItemId = usePlayerStore((s) => s.failedSourceItemId);
+  const playerError = usePlayerStore((s) => s.error);
 
   return (
     <div className="mx-auto max-w-2xl py-4">
@@ -290,6 +292,16 @@ export function SearchPage() {
                                     .filter(Boolean)
                                     .join(' · ')}
                                 </span>
+                                {si.playability?.status === 'unavailable' && (
+                                  <span className="block text-xs text-destructive">
+                                    当前无法播放{si.playability.message ? `：${si.playability.message}` : ''}
+                                  </span>
+                                )}
+                                {failedSourceItemId === si.id && playerError && (
+                                  <span className="block text-xs text-destructive" aria-live="polite">
+                                    {playerError}
+                                  </span>
+                                )}
                               </span>
                             </button>
                             <SourceAttribution attribution={si.attributionMetadata} />
