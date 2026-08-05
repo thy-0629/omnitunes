@@ -296,14 +296,22 @@ export function SearchPage() {
                               >
                                 {sourceLabel(si.source)}
                               </span>
-                              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                                {si.publisher ?? si.externalId}
-                              </span>
-                              {rec.recording.durationSec != null && (
-                                <span className="shrink-0 tabular-nums text-muted-foreground">
-                                  {formatDuration(rec.recording.durationSec)}
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium">
+                                  {group.songWork.title} · {group.songWork.artists}
                                 </span>
-                              )}
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {[
+                                    si.publisher,
+                                    sourceLabel(si.source),
+                                    rec.recording.durationSec != null
+                                      ? formatDuration(rec.recording.durationSec)
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                </span>
+                              </span>
                             </button>
                             <button
                               type="button"

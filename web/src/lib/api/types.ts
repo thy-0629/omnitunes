@@ -34,6 +34,11 @@ export interface SourceItem {
   publisher: string | null;
   url: string | null;
   thumbnailUrl: string | null;
+  qualityMetadata?: {
+    playCount?: number;
+    interactionCount?: number;
+    isOfficialPublisher?: boolean;
+  } | null;
 }
 
 export interface SearchResultGroup {
