@@ -66,7 +66,7 @@ describe('parseSearchResults', () => {
     expect(hits[0]).toMatchObject({
       externalId: 'BV1xx411c7mD',
       title: '周杰伦 - 晴天 (官方MV)',
-      artists: '杰威尔音乐',
+      artists: '未知艺术家',
       durationSec: 269,
       thumbnailUrl: 'https://i0.hdslb.com/bfs/archive/abc.jpg',
       publisher: '杰威尔音乐',
@@ -119,6 +119,62 @@ describe('BilibiliAdapter', () => {
     expect(searchUrl).toContain('w_rid=');
     expect(searchUrl).toContain('wts=');
     expect(searchUrl).toContain(encodeURIComponent('周杰伦'));
+  });
+
+  it.each(['晴天 - 周杰伦', '晴天 by 周杰伦'])(
+    'keeps title matches for an explicit title-and-artist query: %s',
+    async (query) => {
+      const adapter = makeAdapter(makeFetchMock());
+
+      const hits = await adapter.search({ query, limit: 10 });
+
+      expect(hits).toHaveLength(1);
+      expect(hits[0]).toMatchObject({
+        title: '晴天',
+        artists: '周杰伦',
+        publisher: '杰威尔音乐',
+      });
+    },
+  );
+
+  it('keeps simple-query filtering and music-duration limits', async () => {
+    const adapter = makeAdapter(makeFetchMock({
+      code: 0,
+      data: {
+        result: [
+          { bvid: 'BV1match', title: '晴天 现场', author: 'UP主', duration: '4:00' },
+          { bvid: 'BV1other', title: '稻香 现场', author: 'UP主', duration: '4:00' },
+          { bvid: 'BV1short', title: '晴天 片段', author: 'UP主', duration: '0:30' },
+          { bvid: 'BV1long', title: '晴天 合集', author: 'UP主', duration: '16:00' },
+        ],
+      },
+    }));
+
+    const hits = await adapter.search({ query: '晴天', limit: 10 });
+
+    expect(hits.map((hit) => hit.externalId)).toEqual(['BV1match']);
+  });
+
+  it('uses a neutral artist when the title does not reliably identify one', async () => {
+    const adapter = makeAdapter(makeFetchMock({
+      code: 0,
+      data: {
+        result: [{
+          bvid: 'BV1unknown',
+          title: '<em class="keyword">晴天</em> 官方MV',
+          author: '某UP主',
+          duration: '4:29',
+        }],
+      },
+    }));
+
+    const hits = await adapter.search({ query: '晴天', limit: 10 });
+
+    expect(hits[0]).toMatchObject({
+      title: '晴天 官方MV',
+      artists: '未知艺术家',
+      publisher: '某UP主',
+    });
   });
 
   it('caches wbi keys across searches (no second nav call)', async () => {

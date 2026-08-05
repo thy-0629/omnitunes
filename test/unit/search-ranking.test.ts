@@ -90,4 +90,28 @@ describe('scoreGroup', () => {
       scoreGroup(wholeTitleCandidate, query, canonicalTitle(query)),
     );
   });
+
+  it('parses a no-space em dash as an explicit title-and-artist separator', () => {
+    const splitMetadataMatch = group('Song', 'Artist', null);
+    const wholeTitleCandidate = group('Song—Artist', 'Unrelated Creator', {
+      playCount: 10_000_000_000,
+      interactionCount: 10_000_000_000,
+      isOfficialPublisher: true,
+    }, 2);
+    const query = 'Song—Artist';
+
+    expect(scoreGroup(splitMetadataMatch, query, canonicalTitle(query))).toBeGreaterThan(
+      scoreGroup(wholeTitleCandidate, query, canonicalTitle(query)),
+    );
+  });
+
+  it.each(['反应', '教程'])('penalizes the Chinese noise term %s', (noiseTerm) => {
+    const musicResult = group('晴天 现场', '周杰伦', null);
+    const noiseResult = group(`晴天 ${noiseTerm}`, '视频作者', null);
+    const query = '晴天';
+
+    expect(scoreGroup(musicResult, query, canonicalTitle(query))).toBeGreaterThan(
+      scoreGroup(noiseResult, query, canonicalTitle(query)),
+    );
+  });
 });

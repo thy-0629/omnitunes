@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getCollections } from '@/lib/api';
 import type { UnifiedSearchResult } from '@/lib/api/types';
 import { usePlayerStore } from '@/stores/player';
 import { useQueueStore } from '@/stores/queue';
@@ -78,6 +79,7 @@ describe('SearchPage', () => {
   });
 
   beforeEach(() => {
+    vi.mocked(getCollections).mockResolvedValue({ items: [], total: 0 });
     usePlayerStore.getState().reset();
     useSearchStore.setState({
       query: '',
@@ -146,5 +148,37 @@ describe('SearchPage', () => {
       expect(addToQueue).toHaveBeenNthCalledWith(index + 1, searchResult.results[0]!.songWork, sourceItemId);
       expect(addNext).toHaveBeenNthCalledWith(index + 1, searchResult.results[0]!.songWork, sourceItemId);
     }
+  });
+
+  it('shows an unknown artist separately from the Bilibili uploader', () => {
+    useSearchStore.setState({
+      result: {
+        ...searchResult,
+        results: [{
+          songWork: { id: 'song-unknown', title: '晴天 官方MV', artists: '未知艺术家' },
+          recordings: [{
+            recording: {
+              ...searchResult.results[0]!.recordings[0]!.recording,
+              id: 'recording-unknown',
+              songWorkId: 'song-unknown',
+            },
+            sourceItems: [{
+              ...searchResult.results[0]!.recordings[0]!.sourceItems[0]!,
+              id: 'source-unknown',
+              recordingId: 'recording-unknown',
+              publisher: '某UP主',
+            }],
+          }],
+        }],
+      },
+    });
+
+    render(<SearchPage />);
+
+    const sourceRow = screen.getByRole('button', {
+      name: /晴天 官方MV · 未知艺术家.*某UP主 · B站 · 4:29/,
+    });
+    expect(within(sourceRow).getByText('晴天 官方MV · 未知艺术家')).toBeVisible();
+    expect(within(sourceRow).getByText('某UP主 · B站 · 4:29')).toBeVisible();
   });
 });

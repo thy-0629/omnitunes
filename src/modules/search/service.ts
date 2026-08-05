@@ -2,9 +2,10 @@ import type { DbClient } from '../../db/client.js';
 import type { SourceRegistry } from '../sources/registry.js';
 import type { SearchParams, SourceId } from '../sources/types.js';
 import { Normalizer, canonicalTitle, type NormalizedEntry, type NormalizerInput } from './normalizer.js';
+import { parseTitleArtistQuery } from './query.js';
 
 const NOISE_ENGLISH = /\b(vlog|review|reaction|gaming|gameplay|commentary|podcast|asmr|tutorial|travel|trip|journey|tour|mock|playlist|medley|mashup|drum cover|cover by)\b/i;
-const NOISE_CHINESE = /(合集|歌单|精选|动态鼓谱|游戏|解说|纪录片|游记|旅行| tours?|vlog|reaction|review|mock)/i;
+const NOISE_CHINESE = /(合集|歌单|精选|动态鼓谱|游戏|解说|反应|教程|纪录片|游记|旅行| tours?|vlog|reaction|review|mock)/i;
 
 function isNoiseTitle(title: string): boolean {
   return NOISE_ENGLISH.test(title) || NOISE_CHINESE.test(title);
@@ -199,22 +200,6 @@ export function scoreGroup(
   score += bestSourceQualityBonus(group);
 
   return score;
-}
-
-interface TitleArtistQuery {
-  title: string;
-  artist: string;
-}
-
-function parseTitleArtistQuery(query: string): TitleArtistQuery | null {
-  const match =
-    query.match(/^\s*(.+?)\s+(?:-|—)\s+(.+?)\s*$/) ??
-    query.match(/^\s*(.+?)\s+by\s+(.+?)\s*$/i);
-  if (!match) return null;
-
-  const title = match[1]?.trim();
-  const artist = match[2]?.trim();
-  return title && artist ? { title, artist } : null;
 }
 
 function artistClauseMatches(artists: string, clause: string): boolean {

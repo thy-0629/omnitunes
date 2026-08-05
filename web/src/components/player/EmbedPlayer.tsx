@@ -37,12 +37,18 @@ export function EmbedPlayer() {
           title="embedded player"
         />
       </div>
-      <div className="mx-auto flex max-w-3xl justify-end px-4 py-2">
+      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-2">
+        <p className="text-xs text-white/75" role="status" aria-live="polite">
+          {videoVisible
+            ? '浏览器或视频平台可能阻止有声自动播放；若未开始，请在视频中点击播放。'
+            : '浏览器或视频平台可能阻止有声自动播放；若未开始，请显示视频并在视频中点击播放。'}
+        </p>
         <button
           type="button"
-          className="rounded-md bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20"
+          className="shrink-0 rounded-md bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20"
           onClick={videoVisible ? hideVideo : showVideo}
           aria-pressed={!videoVisible}
+          title={videoVisible ? '隐藏视频画面' : '显示视频画面'}
         >
           {videoVisible ? '隐藏视频' : '显示视频'}
         </button>

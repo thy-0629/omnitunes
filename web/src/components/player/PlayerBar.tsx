@@ -177,6 +177,8 @@ export function PlayerBar() {
                   type="button"
                   className="apple-btn rounded-full bg-secondary px-3 text-xs font-semibold text-secondary-foreground"
                   onClick={() => showVideo()}
+                  title="显示视频画面"
+                  aria-pressed={!videoVisible}
                 >
                   显示视频
                 </button>
@@ -374,6 +376,8 @@ export function PlayerBar() {
                   type="button"
                   className="apple-btn mx-auto flex items-center justify-center rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground"
                   onClick={() => showVideo()}
+                  title="显示视频画面"
+                  aria-pressed={!videoVisible}
                 >
                   显示视频
                 </button>

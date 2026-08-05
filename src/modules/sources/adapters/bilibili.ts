@@ -6,6 +6,7 @@ import type {
   SourceAdapter,
 } from '../types.js';
 import { SourceError } from '../types.js';
+import { parseTitleArtistQuery } from '../../search/query.js';
 import { extractKeyFromWbiUrl, getMixinKey, signParams } from './bilibili/wbi.js';
 import { MinIntervalGate } from './bilibili/rate-limit.js';
 
@@ -32,6 +33,7 @@ const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 const BVID_RE = /^BV[0-9A-Za-z]+$/;
+const UNKNOWN_ARTIST = '未知艺术家';
 
 interface WbiKeyCache {
   mixinKey: string;
@@ -72,7 +74,8 @@ export class BilibiliAdapter implements SourceAdapter {
     const json = await this.searchOnce(query, limit, false);
     const hits = parseSearchResults(json);
 
-    const queryLower = query.toLowerCase();
+    const titleQuery = parseTitleArtistQuery(query)?.title ?? query;
+    const queryLower = titleQuery.toLowerCase();
     return hits
       .filter((hit) => {
         const duration = hit.durationSec ?? 0;
@@ -81,7 +84,7 @@ export class BilibiliAdapter implements SourceAdapter {
         return hit.title.toLowerCase().includes(queryLower);
       })
       .map((hit) => {
-        const { title, artists } = extractMusicMeta(hit.title, hit.artists);
+        const { title, artists } = extractMusicMeta(hit.title);
         return { ...hit, title, artists };
       });
   }
@@ -212,7 +215,7 @@ export class BilibiliAdapter implements SourceAdapter {
 // -----------------------------------------------------------------------------
 
 /** Try to extract a cleaner title + artist from common Bilibili music-video title patterns. */
-function extractMusicMeta(rawTitle: string, author: string): { title: string; artists: string } {
+function extractMusicMeta(rawTitle: string): { title: string; artists: string } {
   const cleaned = stripHtmlTags(rawTitle).trim();
 
   // pattern: 【...】歌手 - 歌名 ...
@@ -248,8 +251,8 @@ function extractMusicMeta(rawTitle: string, author: string): { title: string; ar
     }
   }
 
-  // fallback: just clean the title, keep uploader as artist
-  return { title: cleaned, artists: author || 'Unknown' };
+  // The uploader remains publisher metadata; it is not reliable song-artist metadata.
+  return { title: cleaned, artists: UNKNOWN_ARTIST };
 }
 
 function looksLikeArtist(s: string): boolean {
@@ -294,15 +297,15 @@ export function parseSearchResults(json: unknown): RawHit[] {
   const hits: RawHit[] = [];
   for (const raw of result as BiliSearchResultItem[]) {
     if (typeof raw?.bvid !== 'string' || !BVID_RE.test(raw.bvid)) continue;
-    const author = typeof raw.author === 'string' && raw.author ? raw.author : 'Unknown';
+    const publisher = typeof raw.author === 'string' && raw.author ? raw.author : undefined;
     const rawTitle = typeof raw.title === 'string' ? raw.title : raw.bvid;
     hits.push({
       externalId: raw.bvid,
       title: stripHtmlTags(rawTitle),
-      artists: author,
+      artists: UNKNOWN_ARTIST,
       durationSec: parseDuration(raw.duration),
       thumbnailUrl: normalizePicUrl(raw.pic),
-      publisher: author,
+      publisher,
       metadata: {
         bvid: raw.bvid,
         aid: typeof raw.aid === 'number' ? raw.aid : undefined,
