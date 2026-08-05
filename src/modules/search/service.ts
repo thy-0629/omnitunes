@@ -1,4 +1,5 @@
 import type { DbClient } from '../../db/client.js';
+import type { PlayabilityVerifier } from '../sources/playability.js';
 import type { SourceRegistry } from '../sources/registry.js';
 import type { SearchParams, SourceId } from '../sources/types.js';
 import { Normalizer, canonicalTitle, type NormalizedEntry, type NormalizerInput } from './normalizer.js';
@@ -63,6 +64,7 @@ export class UnifiedSearchService {
   constructor(
     private readonly registry: SourceRegistry,
     private readonly normalizer: Normalizer,
+    private readonly verifier: PlayabilityVerifier,
   ) {}
 
   async search(params: UnifiedSearchParams): Promise<UnifiedSearchResult> {
@@ -77,9 +79,35 @@ export class UnifiedSearchService {
 
     // concurrent fan-out — a single source failing must not break the others
     const settled = await Promise.allSettled(
-      adapters.map((a) =>
-        this.registry.instrumentedSearch(a.id, { query: params.query, limit: params.limit }),
-      ),
+      adapters.map(async (adapter) => {
+        const hits = await this.registry.instrumentedSearch(adapter.id, {
+          query: params.query,
+          limit: params.limit,
+        });
+        const verified = await Promise.all(
+          hits.slice(0, 8).map(async (hit) => {
+            try {
+              const options = await adapter.getPlayOptions(hit.externalId);
+              const playable = await this.verifier.verify(adapter.id, options);
+              this.registry.recordPlayability(adapter.id, playable.length > 0);
+              return playable.length > 0
+                ? { input: { sourceId: adapter.id, hit } satisfies NormalizerInput }
+                : {};
+            } catch (error) {
+              this.registry.recordPlayability(adapter.id, false);
+              const err = error as { code?: string; message?: string } | undefined;
+              return {
+                error: {
+                  source: adapter.id,
+                  code: err?.code ?? 'unknown',
+                  message: err?.message ?? String(error),
+                } satisfies SearchError,
+              };
+            }
+          }),
+        );
+        return verified;
+      }),
     );
 
     const errors: SearchError[] = [];
@@ -87,7 +115,10 @@ export class UnifiedSearchService {
     settled.forEach((res, i) => {
       const id = sourcesQueried[i]!;
       if (res.status === 'fulfilled') {
-        for (const hit of res.value) inputs.push({ sourceId: id, hit });
+        for (const outcome of res.value) {
+          if (outcome.input) inputs.push(outcome.input);
+          if (outcome.error) errors.push(outcome.error);
+        }
       } else {
         const err = res.reason as { code?: string; message?: string } | undefined;
         errors.push({

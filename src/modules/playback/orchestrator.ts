@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { DbClient } from '../../db/client.js';
 import { playableOptions, playHistory, recordings, sourceItems } from '../../db/schema.js';
+import type { PlayabilityVerifier } from '../sources/playability.js';
 import type { SourceRegistry } from '../sources/registry.js';
 import type { PlayOption, PlayOptionType, SourceId } from '../sources/types.js';
 
@@ -110,17 +111,36 @@ export class PlaybackOrchestrator {
   constructor(
     private readonly db: DbClient,
     private readonly registry: SourceRegistry,
+    private readonly verifier: PlayabilityVerifier,
   ) {}
 
   // --- resolve ---------------------------------------------------------------
 
   async resolvePlay(req: ResolvePlayRequest): Promise<ResolvePlayResult> {
     const items = this.findSourceItems(req);
+    return this.resolveSourceItems(items, req.preferredSource);
+  }
+
+  private async resolveSourceItems(
+    items: SourceItemRow[],
+    preferredSource?: SourceId,
+  ): Promise<ResolvePlayResult> {
     if (items.length === 0) return { options: [], best: null, errors: [] };
 
     // live fan-out — online-first
     const settled = await Promise.allSettled(
-      items.map((si) => this.registry.instrumentedPlayOptions(si.source as SourceId, si.externalId)),
+      items.map(async (si) => {
+        const source = si.source as SourceId;
+        try {
+          const fresh = await this.registry.instrumentedPlayOptions(source, si.externalId);
+          const verified = await this.verifier.verify(source, fresh);
+          this.registry.recordPlayability(source, verified.length > 0);
+          return verified;
+        } catch (error) {
+          this.registry.recordPlayability(source, false);
+          throw error;
+        }
+      }),
     );
 
     const errors: PlayErrorEntry[] = [];
@@ -191,7 +211,7 @@ export class PlaybackOrchestrator {
       }),
     );
 
-    const ranked = rankOptions(persisted, req.preferredSource);
+    const ranked = rankOptions(persisted, preferredSource);
     return { options: ranked, best: ranked[0] ?? null, errors };
   }
 
@@ -339,14 +359,54 @@ export class PlaybackOrchestrator {
       .where(eq(playHistory.id, playId))
       .run();
 
-    // resolve all options for the same song work
-    const resolved = await this.resolvePlay({ songWorkId: prev.songWorkId });
+    const failedSourceItem = this.db
+      .select()
+      .from(sourceItems)
+      .where(eq(sourceItems.id, prev.sourceItemId))
+      .limit(1)
+      .get();
+    if (!failedSourceItem) {
+      throw new PlayError('source_item_not_found', `source item not found: ${prev.sourceItemId}`);
+    }
+
+    const failedSource = failedSourceItem.source as SourceId;
+    let failedOptions: PlayOption[] = [];
+    try {
+      failedOptions = await this.registry.instrumentedPlayOptions(
+        failedSource,
+        failedSourceItem.externalId,
+      );
+    } catch {
+      failedOptions = this.db
+        .select()
+        .from(playableOptions)
+        .where(eq(playableOptions.sourceItemId, failedSourceItem.id))
+        .all()
+        .map((option) => ({
+          type: option.type as PlayOptionType,
+          payload: option.payload,
+          expiresAt: option.expiresAt,
+        }));
+    }
+    this.verifier.markUnavailable(failedSource, failedOptions);
+    this.registry.recordPlayability(failedSource, false);
+    this.db
+      .update(playableOptions)
+      .set({ status: 'blocked', updatedAt: Date.now() })
+      .where(eq(playableOptions.sourceItemId, failedSourceItem.id))
+      .run();
+
+    const alternateItems = this.findSourceItems({ songWorkId: prev.songWorkId })
+      .filter((item) => item.id !== prev.sourceItemId);
+    if (alternateItems.length === 0) {
+      throw new PlayError('no_alternative', 'only one source item available, no fallback possible');
+    }
+    const resolved = await this.resolveSourceItems(alternateItems);
     if (resolved.options.length === 0) {
       throw new PlayError('no_fallback', `no alternative play options for song work: ${prev.songWorkId}`);
     }
 
-    // pick the next option that's NOT the one that just failed
-    const next = resolved.options.find((o) => o.sourceItem.id !== prev.sourceItemId);
+    const next = resolved.options[0];
     if (!next) {
       // only one option and it failed — re-use it (caller can decide to stop)
       throw new PlayError('no_alternative', 'only one source item available, no fallback possible');

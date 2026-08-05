@@ -2,6 +2,7 @@ import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
 import { config } from '../../config/env.js';
 import { SourceRegistry } from './registry.js';
+import { PlayabilityVerifier } from './playability.js';
 import { MockAdapter } from './adapters/mock.js';
 import { LocalAdapter } from './adapters/local.js';
 import { YouTubeAdapter } from './adapters/youtube.js';
@@ -11,6 +12,7 @@ import { BilibiliAdapter } from './adapters/bilibili.js';
 declare module 'fastify' {
   interface FastifyInstance {
     sources: SourceRegistry;
+    playability: PlayabilityVerifier;
   }
 }
 
@@ -23,6 +25,7 @@ declare module 'fastify' {
 export default fp(
   async (app: FastifyInstance) => {
     const registry = new SourceRegistry();
+    const playability = new PlayabilityVerifier();
 
     // 1. Mock adapter — always on in development for ease of testing the UI.
     if (config.NODE_ENV !== 'production') {
@@ -48,6 +51,7 @@ export default fp(
     );
 
     app.decorate('sources', registry);
+    app.decorate('playability', playability);
     app.log.info(
       { sources: registry.list().map((a) => a.id) },
       '[sources] registered adapters',

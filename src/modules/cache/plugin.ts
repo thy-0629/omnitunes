@@ -35,8 +35,8 @@ declare module 'fastify' {
 export default fp(
   async (app: FastifyInstance) => {
     const normalizer = new Normalizer(app.db);
-    const innerSearch = new UnifiedSearchService(app.sources, normalizer);
-    const innerOrchestrator = new PlaybackOrchestrator(app.db, app.sources);
+    const innerSearch = new UnifiedSearchService(app.sources, normalizer, app.playability);
+    const innerOrchestrator = new PlaybackOrchestrator(app.db, app.sources, app.playability);
 
     const searchCache = new LruTtlCache<UnifiedSearchResult>({
       maxEntries: config.SEARCH_CACHE_MAX_ENTRIES,

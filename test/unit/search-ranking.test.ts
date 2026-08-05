@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { canonicalTitle } from '../../src/modules/search/normalizer.js';
-import { scoreGroup, type SearchResultGroup } from '../../src/modules/search/service.js';
+import { describe, expect, it, vi } from 'vitest';
+import { Normalizer, canonicalTitle } from '../../src/modules/search/normalizer.js';
+import { scoreGroup, UnifiedSearchService, type SearchResultGroup } from '../../src/modules/search/service.js';
+import { PlayabilityVerifier } from '../../src/modules/sources/playability.js';
+import { SourceRegistry } from '../../src/modules/sources/registry.js';
+import type { SourceAdapter } from '../../src/modules/sources/types.js';
 
 function group(
   title: string,
@@ -113,5 +116,73 @@ describe('scoreGroup', () => {
     expect(scoreGroup(musicResult, query, canonicalTitle(query))).toBeGreaterThan(
       scoreGroup(noiseResult, query, canonicalTitle(query)),
     );
+  });
+});
+
+describe('UnifiedSearchService playability gate', () => {
+  it('does not normalize a hit whose only stream option fails preflight', async () => {
+    const adapter: SourceAdapter = {
+      id: 'open_source',
+      displayName: 'Open source test adapter',
+      capabilities: { search: true, playOptions: true, health: true },
+      search: vi.fn().mockResolvedValue([
+        { externalId: 'broken-stream', title: 'Silent Result', artists: 'Nobody' },
+      ]),
+      getPlayOptions: vi.fn().mockResolvedValue([
+        { type: 'stream', payload: 'https://media.example/broken.mp3' },
+      ]),
+      health: vi.fn().mockResolvedValue({ status: 'healthy', checkedAt: 0 }),
+    };
+    const registry = new SourceRegistry();
+    registry.register(adapter);
+    const normalizeAll = vi.fn().mockReturnValue([]);
+    const normalizer = { normalizeAll } as unknown as Normalizer;
+    const verifier = new PlayabilityVerifier({
+      fetchFn: vi.fn().mockResolvedValue(new Response('', {
+        status: 503,
+        headers: { 'content-type': 'text/plain' },
+      })) as unknown as typeof fetch,
+    });
+    const service = new UnifiedSearchService(registry, normalizer, verifier);
+
+    const result = await service.search({ query: 'Silent Result' });
+
+    expect(result.results).toEqual([]);
+    expect(normalizeAll).toHaveBeenCalledWith([]);
+  });
+
+  it('checks only the top eight hits and preserves a per-hit source error', async () => {
+    const hits = Array.from({ length: 10 }, (_, index) => ({
+      externalId: `hit-${index}`,
+      title: `Result ${index}`,
+      artists: 'Artist',
+    }));
+    const getPlayOptions = vi.fn().mockImplementation(async (externalId: string) => {
+      if (externalId === 'hit-7') throw Object.assign(new Error('option lookup failed'), { code: 'network' });
+      return [{ type: 'embed', payload: externalId }];
+    });
+    const adapter: SourceAdapter = {
+      id: 'bilibili',
+      displayName: 'Bilibili test adapter',
+      capabilities: { search: true, playOptions: true, health: true },
+      search: vi.fn().mockResolvedValue(hits),
+      getPlayOptions,
+      health: vi.fn().mockResolvedValue({ status: 'healthy', checkedAt: 0 }),
+    };
+    const registry = new SourceRegistry();
+    registry.register(adapter);
+    const normalizeAll = vi.fn().mockReturnValue([]);
+    const normalizer = { normalizeAll } as unknown as Normalizer;
+    const verifier = new PlayabilityVerifier({ fetchFn: vi.fn() as unknown as typeof fetch });
+    const service = new UnifiedSearchService(registry, normalizer, verifier);
+
+    const result = await service.search({ query: 'Result' });
+
+    expect(getPlayOptions).toHaveBeenCalledTimes(8);
+    expect(normalizeAll.mock.calls[0]![0]).toHaveLength(7);
+    expect(result.errors).toEqual([
+      { source: 'bilibili', code: 'network', message: 'option lookup failed' },
+    ]);
+    expect(registry.describe()[0]!.stats.playabilitySuccessRate).toBe(7 / 8);
   });
 });
