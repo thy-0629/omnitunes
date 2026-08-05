@@ -49,4 +49,17 @@ describe('scoreGroup', () => {
       scoreGroup(popularNearMatch, '晴天 周杰伦', '晴天 周杰伦'),
     );
   });
+
+  it('ranks split song and artist metadata above a popular combined-title candidate', () => {
+    const splitMetadataMatch = group('Song', 'Artist', null);
+    const combinedTitleCandidate = group('Song Artist', 'Unrelated Creator', {
+      playCount: 10_000_000_000,
+      interactionCount: 10_000_000_000,
+      isOfficialPublisher: true,
+    }, 2);
+
+    expect(scoreGroup(splitMetadataMatch, 'Song Artist', 'song artist')).toBeGreaterThan(
+      scoreGroup(combinedTitleCandidate, 'Song Artist', 'song artist'),
+    );
+  });
 });

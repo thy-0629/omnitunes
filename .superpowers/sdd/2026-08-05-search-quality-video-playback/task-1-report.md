@@ -102,3 +102,29 @@ Tests       16 passed (16)
 
 No blocking concerns. The required focused tests and typecheck were run; the
 full repository test suite was not part of this task's requested verification.
+
+## Follow-up review fix
+
+An additional review found that an unrelated combined title (`Song Artist`)
+could score above the intended split title-plus-artist metadata match (`Song`,
+`Artist`) for the query `Song Artist`.
+
+### RED
+
+```text
+pnpm vitest run test/unit/bilibili.test.ts test/unit/search-ranking.test.ts
+```
+
+Exit 1, with the new regression failing as expected:
+
+```text
+scoreGroup > ranks split song and artist metadata above a popular combined-title candidate
+expected 129 to be greater than 241
+```
+
+### GREEN
+
+The split title-plus-artist tier now outranks a whole-title candidate even
+after its bounded source, duration, and source-quality bonuses. The focused
+suite completed successfully with 17 passing tests; final typecheck evidence
+is recorded with the follow-up commit.

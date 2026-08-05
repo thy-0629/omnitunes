@@ -178,7 +178,9 @@ export function scoreGroup(
     }
   }
   if (matchingArtistTokens > 0 && titleClean.length >= 2 && queryClean.includes(titleClean)) {
-    score += 60;
+    // A split title + artist match is stronger than an unrelated whole-title
+    // query match, even after that candidate's bounded secondary bonuses.
+    score += 200;
   }
 
   // distinct sources bonus, capped so playlists don't dominate real songs
