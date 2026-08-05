@@ -128,3 +128,33 @@ The split title-plus-artist tier now outranks a whole-title candidate even
 after its bounded source, duration, and source-quality bonuses. The focused
 suite completed successfully with 17 passing tests; final typecheck evidence
 is recorded with the follow-up commit.
+
+## Ambiguity follow-up
+
+The phrase `Song Artist` is ambiguous between a whole title and a split
+title-plus-artist intent. The agreed interpretation is now explicit in the
+task brief: whitespace-only input remains a whole-title search; title-plus-
+artist priority requires ` - `, `—`, or ` by `; artist matching uses normalized
+whole-artist equality or token boundaries rather than substrings.
+
+### RED
+
+```text
+pnpm vitest run test/unit/bilibili.test.ts test/unit/search-ranking.test.ts
+```
+
+Exit 1 with the two intended regression failures:
+
+```text
+expected 215 to be greater than 269
+expected 269 to be greater than 465
+```
+
+These prove whitespace input was incorrectly promoted as split metadata and
+that `Song` was incorrectly accepted as a substring of `The Songwriter`.
+
+### GREEN
+
+After parsing only the approved explicit separators and applying boundary-
+based artist matching, the focused suite passed with 19 tests. The final
+focused-test and typecheck run is captured with this follow-up commit.

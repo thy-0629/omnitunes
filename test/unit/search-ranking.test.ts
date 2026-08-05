@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { canonicalTitle } from '../../src/modules/search/normalizer.js';
 import { scoreGroup, type SearchResultGroup } from '../../src/modules/search/service.js';
 
 function group(
@@ -37,16 +38,17 @@ describe('scoreGroup', () => {
     );
   });
 
-  it('ranks an artist-qualified song above a popular official near-match', () => {
-    const exactSong = group('晴天', '周杰伦', null);
-    const popularNearMatch = group('晴天 Official MV', 'Unrelated Creator', {
+  it('ranks an explicitly qualified song above a popular official near-match', () => {
+    const exactSong = group('Starlight', 'Aurora', null);
+    const popularNearMatch = group('Starlight Official MV', 'Unrelated Creator', {
       playCount: 10_000_000_000,
       interactionCount: 10_000_000_000,
       isOfficialPublisher: true,
     }, 2);
+    const query = 'Starlight - Aurora';
 
-    expect(scoreGroup(exactSong, '晴天 周杰伦', '晴天 周杰伦')).toBeGreaterThan(
-      scoreGroup(popularNearMatch, '晴天 周杰伦', '晴天 周杰伦'),
+    expect(scoreGroup(exactSong, query, canonicalTitle(query))).toBeGreaterThan(
+      scoreGroup(popularNearMatch, query, canonicalTitle(query)),
     );
   });
 
@@ -58,8 +60,34 @@ describe('scoreGroup', () => {
       isOfficialPublisher: true,
     }, 2);
 
-    expect(scoreGroup(splitMetadataMatch, 'Song Artist', 'song artist')).toBeGreaterThan(
-      scoreGroup(combinedTitleCandidate, 'Song Artist', 'song artist'),
+    const query = 'Song - Artist';
+
+    expect(scoreGroup(splitMetadataMatch, query, canonicalTitle(query))).toBeGreaterThan(
+      scoreGroup(combinedTitleCandidate, query, canonicalTitle(query)),
+    );
+  });
+
+  it('keeps an exact whole title authoritative for a whitespace-only query', () => {
+    const exactWholeTitle = group('Song Artist', 'The Band', null);
+    const splitMetadataMatch = group('Song', 'Artist', null);
+    const query = 'Song Artist';
+
+    expect(scoreGroup(exactWholeTitle, query, canonicalTitle(query))).toBeGreaterThan(
+      scoreGroup(splitMetadataMatch, query, canonicalTitle(query)),
+    );
+  });
+
+  it('prioritizes explicit title and artist clauses without substring artist matches', () => {
+    const splitMetadataMatch = group('Song', 'Artist', null);
+    const wholeTitleCandidate = group('Song - Artist', 'The Songwriter', {
+      playCount: 10_000_000_000,
+      interactionCount: 10_000_000_000,
+      isOfficialPublisher: true,
+    }, 2);
+    const query = 'Song - Artist';
+
+    expect(scoreGroup(splitMetadataMatch, query, canonicalTitle(query))).toBeGreaterThan(
+      scoreGroup(wholeTitleCandidate, query, canonicalTitle(query)),
     );
   });
 });

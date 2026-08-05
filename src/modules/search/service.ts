@@ -150,37 +150,31 @@ export function scoreGroup(
 ): number {
   const titleClean = canonicalTitle(group.songWork.title);
   const titleLower = group.songWork.title.toLowerCase();
-  const queryLower = query.toLowerCase();
+  const qualifiedQuery = parseTitleArtistQuery(query);
+  const titleQuery = qualifiedQuery?.title ?? query;
+  const titleQueryClean = qualifiedQuery ? canonicalTitle(titleQuery) : queryClean;
+  const titleQueryLower = titleQuery.toLowerCase();
   let score = 0;
 
-  const exactTitle = queryClean.length > 0 && titleClean === queryClean;
+  const exactTitle = titleQueryClean.length > 0 && titleClean === titleQueryClean;
   if (exactTitle) {
     // This text-match tier deliberately exceeds every possible quality bonus.
     score += 200;
-  } else if (titleClean.includes(queryClean) && queryClean.length >= 2) {
+  } else if (titleClean.includes(titleQueryClean) && titleQueryClean.length >= 2) {
     score += 80;
-  } else if (queryClean.includes(titleClean) && titleClean.length >= 2) {
+  } else if (titleQueryClean.includes(titleClean) && titleClean.length >= 2) {
     score += 30;
   }
 
   // strongest signal: raw title contains the query (handles "歌手《歌名》" / "歌手 - 歌名 MV")
-  if (!exactTitle && queryLower.length > 0 && titleLower.includes(queryLower)) {
+  if (!exactTitle && titleQueryLower.length > 0 && titleLower.includes(titleQueryLower)) {
     score += 40;
   }
 
-  const artistLower = group.songWork.artists.toLowerCase();
-  const artistTokens = new Set(queryLower.match(/[\p{L}\p{N}]{2,}/gu) ?? []);
-  let matchingArtistTokens = 0;
-  for (const token of artistTokens) {
-    if (artistLower.includes(token)) {
-      matchingArtistTokens += 1;
-      score += 24;
-    }
-  }
-  if (matchingArtistTokens > 0 && titleClean.length >= 2 && queryClean.includes(titleClean)) {
-    // A split title + artist match is stronger than an unrelated whole-title
-    // query match, even after that candidate's bounded secondary bonuses.
-    score += 200;
+  if (qualifiedQuery && exactTitle && artistClauseMatches(group.songWork.artists, qualifiedQuery.artist)) {
+    // Explicit clauses disambiguate a title-plus-artist intent from an exact
+    // whole-title search. This tier exceeds every bounded secondary bonus.
+    score += 300;
   }
 
   // distinct sources bonus, capped so playlists don't dominate real songs
@@ -205,6 +199,36 @@ export function scoreGroup(
   score += bestSourceQualityBonus(group);
 
   return score;
+}
+
+interface TitleArtistQuery {
+  title: string;
+  artist: string;
+}
+
+function parseTitleArtistQuery(query: string): TitleArtistQuery | null {
+  const match =
+    query.match(/^\s*(.+?)\s+(?:-|—)\s+(.+?)\s*$/) ??
+    query.match(/^\s*(.+?)\s+by\s+(.+?)\s*$/i);
+  if (!match) return null;
+
+  const title = match[1]?.trim();
+  const artist = match[2]?.trim();
+  return title && artist ? { title, artist } : null;
+}
+
+function artistClauseMatches(artists: string, clause: string): boolean {
+  const normalizedArtists = normalizeSearchText(artists);
+  const normalizedClause = normalizeSearchText(clause);
+  if (!normalizedClause) return false;
+  if (normalizedArtists === normalizedClause) return true;
+
+  const escapedClause = normalizedClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|[^\\p{L}\\p{N}])${escapedClause}(?=$|[^\\p{L}\\p{N}])`, 'u').test(normalizedArtists);
+}
+
+function normalizeSearchText(value: string): string {
+  return value.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 function bestSourceQualityBonus(group: SearchResultGroup): number {
