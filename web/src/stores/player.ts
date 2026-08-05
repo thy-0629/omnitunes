@@ -25,6 +25,7 @@ interface PlayerState {
   volume: number;
   isMuted: boolean;
   seekRatio: number | null;
+  videoVisible: boolean;
 
   /** Resolve + start playback for a source item, showing song info in the bar. */
   playSourceItem: (
@@ -45,6 +46,8 @@ interface PlayerState {
   toggleMuted: () => void;
   requestSeek: (ratio: number) => void;
   consumeSeek: () => void;
+  hideVideo: () => void;
+  showVideo: () => void;
   reset: () => void;
 }
 
@@ -69,12 +72,21 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   volume: 1,
   isMuted: false,
   seekRatio: null,
+  videoVisible: true,
 
   playSourceItem: async (sourceItemId, songWork, optionId) => {
     set({ status: 'resolving', error: null, songWork, isPaused: false, currentQueueItemId: null });
     try {
       const { playId, option } = await startPlay({ sourceItemId, optionId });
-      set({ playId, option, status: 'playing', positionSec: 0, durationSec: null, isPaused: false });
+      set({
+        playId,
+        option,
+        status: 'playing',
+        positionSec: 0,
+        durationSec: null,
+        isPaused: false,
+        videoVisible: true,
+      });
     } catch (err) {
       set({ status: 'error', error: err instanceof Error ? err.message : String(err) });
     }
@@ -92,7 +104,15 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         sourceItemId: resolved.best.sourceItem.id,
         optionId: resolved.best.playableOptionId,
       });
-      set({ playId, option, status: 'playing', positionSec: 0, durationSec: null, isPaused: false });
+      set({
+        playId,
+        option,
+        status: 'playing',
+        positionSec: 0,
+        durationSec: null,
+        isPaused: false,
+        videoVisible: true,
+      });
     } catch (err) {
       set({ status: 'error', error: err instanceof Error ? err.message : String(err) });
     }
@@ -116,6 +136,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
           positionSec: 0,
           durationSec: null,
           isPaused: false,
+          videoVisible: true,
         });
       } else {
         const resolved = await resolvePlay({ songWorkId: item.songWorkId });
@@ -134,6 +155,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
           positionSec: 0,
           durationSec: null,
           isPaused: false,
+          videoVisible: true,
         });
       }
     } catch (err) {
@@ -158,7 +180,14 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     set({ status: 'resolving', error: null, isPaused: false });
     try {
       const res = await fallbackPlay(playId, reason);
-      set({ playId: res.playId, option: res.option, status: 'playing', positionSec: 0, isPaused: false });
+      set({
+        playId: res.playId,
+        option: res.option,
+        status: 'playing',
+        positionSec: 0,
+        isPaused: false,
+        videoVisible: true,
+      });
     } catch (err) {
       set({ status: 'error', error: `换源失败：${err instanceof Error ? err.message : String(err)}` });
     }
@@ -179,6 +208,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
           durationSec: null,
           isPaused: false,
           error: null,
+          videoVisible: true,
         });
       } else {
         set({
@@ -211,6 +241,10 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 
   consumeSeek: () => set({ seekRatio: null }),
 
+  hideVideo: () => set({ videoVisible: false }),
+
+  showVideo: () => set({ videoVisible: true }),
+
   reset: () =>
     set({
       playId: null,
@@ -223,5 +257,6 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       durationSec: null,
       isPaused: false,
       seekRatio: null,
+      videoVisible: true,
     }),
 }));

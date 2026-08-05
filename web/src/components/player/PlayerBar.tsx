@@ -31,6 +31,7 @@ export function PlayerBar() {
     isPaused,
     volume,
     isMuted,
+    videoVisible,
     togglePause,
     tryFallback,
     requestSeek,
@@ -38,6 +39,7 @@ export function PlayerBar() {
     toggleMuted,
     endCurrent,
     playNextFromQueue,
+    showVideo,
   } = usePlayerStore();
   const progressRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -147,7 +149,7 @@ export function PlayerBar() {
                 {status === 'error'
                   ? error
                   : isEmbed
-                    ? '嵌入播放中（在播放器内控制进度）'
+                    ? '嵌入播放器没有可靠结束事件，请手动点下一首'
                     : songWork?.artists}
               </div>
             </button>
@@ -167,6 +169,16 @@ export function PlayerBar() {
                   ) : (
                     <Volume2 className="h-4 w-4" />
                   )}
+                </button>
+              )}
+
+              {isEmbed && !videoVisible && (
+                <button
+                  type="button"
+                  className="apple-btn rounded-full bg-secondary px-3 text-xs font-semibold text-secondary-foreground"
+                  onClick={() => showVideo()}
+                >
+                  显示视频
                 </button>
               )}
 
@@ -287,12 +299,14 @@ export function PlayerBar() {
                       <span>{formatDuration(durationSec)}</span>
                     </div>
                   </>
-                ) : (
-                  <div className="text-center text-xs text-muted-foreground">
-                    嵌入播放中，进度请在媒体控件内控制
-                  </div>
-                )}
+                ) : null}
               </div>
+
+              {isEmbed && (
+                <div className="text-center text-xs text-muted-foreground">
+                  嵌入播放器没有可靠结束事件，请手动点下一首
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <button
@@ -354,6 +368,16 @@ export function PlayerBar() {
                   <Repeat className="h-5 w-5" />
                 </button>
               </div>
+
+              {isEmbed && !videoVisible && (
+                <button
+                  type="button"
+                  className="apple-btn mx-auto flex items-center justify-center rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground"
+                  onClick={() => showVideo()}
+                >
+                  显示视频
+                </button>
+              )}
 
               {!isEmbed && (
                 <div className="flex items-center gap-3 text-muted-foreground">

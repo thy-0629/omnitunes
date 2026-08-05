@@ -13,9 +13,9 @@ import type { SourceId } from '@/lib/api/types';
 export function buildEmbedUrl(source: SourceId, payload: string): string | null {
   switch (source) {
     case 'bilibili':
-      return `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(payload)}&autoplay=0&muted=0`;
+      return `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(payload)}&autoplay=1&muted=0`;
     case 'youtube':
-      return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(payload)}`;
+      return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(payload)}?autoplay=1`;
     default:
       return null;
   }

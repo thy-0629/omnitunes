@@ -9,6 +9,9 @@ import { usePlayerStore } from '@/stores/player';
 export function EmbedPlayer() {
   const option = usePlayerStore((s) => s.option);
   const status = usePlayerStore((s) => s.status);
+  const videoVisible = usePlayerStore((s) => s.videoVisible);
+  const hideVideo = usePlayerStore((s) => s.hideVideo);
+  const showVideo = usePlayerStore((s) => s.showVideo);
 
   if (!option || option.option.type !== 'embed' || status === 'idle') return null;
   const url = buildEmbedUrl(option.source, option.option.payload);
@@ -23,15 +26,26 @@ export function EmbedPlayer() {
 
   return (
     <div className="border-b bg-black">
-      <div className="mx-auto aspect-video max-w-3xl">
+      <div className="mx-auto aspect-video max-w-3xl" hidden={!videoVisible}>
         <iframe
           key={url}
           src={url}
           className="h-full w-full"
+          allow="autoplay; encrypted-media; picture-in-picture"
           allowFullScreen
           sandbox="allow-scripts allow-same-origin allow-presentation"
           title="embedded player"
         />
+      </div>
+      <div className="mx-auto flex max-w-3xl justify-end px-4 py-2">
+        <button
+          type="button"
+          className="rounded-md bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20"
+          onClick={videoVisible ? hideVideo : showVideo}
+          aria-pressed={!videoVisible}
+        >
+          {videoVisible ? '隐藏视频' : '显示视频'}
+        </button>
       </div>
     </div>
   );
