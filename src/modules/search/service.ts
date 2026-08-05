@@ -241,7 +241,9 @@ function sourceItemKey(source: SourceId, externalId: string): string {
 }
 
 function preflightErrorKey(error: SearchError): string {
-  return JSON.stringify([error.source, error.code, error.message, error.retryAt]);
+  // retryAt is computed independently for each media URL. It belongs on the
+  // retained source item, not in the source-level banner identity.
+  return JSON.stringify([error.source, error.code, error.message]);
 }
 
 export function scoreGroup(

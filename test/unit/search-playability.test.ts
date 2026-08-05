@@ -64,4 +64,28 @@ describe('UnifiedSearchService search playability', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toMatchObject({ source: 'open_source', code: 'timeout' });
   });
+
+  it('deduplicates same-source timeout errors when each hit has a different retry time', async () => {
+    const { adapter, normalizer } = createArchiveSearch();
+    adapter.getPlayOptions = vi.fn().mockImplementation(async (externalId: string) => [
+      { type: 'stream', payload: `https://media.example/${externalId}.mp3` },
+    ]);
+    const registry = new SourceRegistry();
+    registry.register(adapter);
+    let now = 10_000;
+    const verifier = new PlayabilityVerifier({
+      fetchFn: vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' })) as unknown as typeof fetch,
+      now: () => now++,
+      resolveHostname: vi.fn().mockResolvedValue(['93.184.216.34']),
+    });
+
+    const result = await new UnifiedSearchService(registry, normalizer, verifier)
+      .search({ query: 'Archive Hit' });
+    const retryAts = result.results[0]!.recordings[0]!.sourceItems
+      .map((item) => item.playability.retryAt);
+
+    expect(new Set(retryAts).size).toBe(2);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toMatchObject({ source: 'open_source', code: 'timeout' });
+  });
 });
