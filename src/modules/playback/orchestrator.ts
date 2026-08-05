@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { DbClient } from '../../db/client.js';
 import { playableOptions, playHistory, recordings, sourceItems } from '../../db/schema.js';
-import type { PlayabilityVerifier } from '../sources/playability.js';
+import type { PlayabilityVerification, PlayabilityVerifier } from '../sources/playability.js';
 import type { SourceRegistry } from '../sources/registry.js';
 import type { PlayOption, PlayOptionType, SourceId } from '../sources/types.js';
 
@@ -131,20 +131,21 @@ export class PlaybackOrchestrator {
     const settled = await Promise.allSettled(
       items.map(async (si) => {
         const source = si.source as SourceId;
+        let verification: PlayabilityVerification;
         try {
           const fresh = await this.registry.instrumentedPlayOptions(source, si.externalId);
-          const verification = await this.verifier.verify(source, fresh);
-          const failure = verification.failures[0];
-          this.registry.recordPlayability(
-            source,
-            verification.options.length > 0 ? true : failure ?? false,
-          );
-          if (verification.options.length === 0 && failure) throw failure;
-          return verification.options;
+          verification = await this.verifier.verify(source, fresh);
         } catch (error) {
           this.registry.recordPlayability(source, false);
           throw error;
         }
+        const failure = verification.failures[0];
+        this.registry.recordPlayability(
+          source,
+          verification.options.length > 0 ? true : failure ?? false,
+        );
+        if (verification.options.length === 0 && failure) throw failure;
+        return verification.options;
       }),
     );
 

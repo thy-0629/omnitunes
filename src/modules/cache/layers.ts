@@ -54,13 +54,14 @@ export function playOptCacheKey(source: string, externalId: string): string {
 /** Decorator: wraps a UnifiedSearchService with an LRU+TTL cache. */
 export class CachedUnifiedSearchService {
   private readonly unsubscribeUnavailable?: () => void;
+  private invalidationGeneration = 0;
 
   constructor(
     private readonly inner: UnifiedSearchService,
     private readonly cache: LruTtlCache<UnifiedSearchResult>,
     verifier?: PlayabilityVerifier,
   ) {
-    this.unsubscribeUnavailable = verifier?.onUnavailable(() => this.cache.clear());
+    this.unsubscribeUnavailable = verifier?.onUnavailable(() => this.clear());
   }
 
   get stats() {
@@ -72,6 +73,7 @@ export class CachedUnifiedSearchService {
   }
 
   clear(): void {
+    this.invalidationGeneration += 1;
     this.cache.clear();
   }
 
@@ -85,8 +87,11 @@ export class CachedUnifiedSearchService {
     if (hit !== undefined) {
       return { ...hit, meta: { ...hit.meta, latencyMs: 0 } };
     }
+    const generation = this.invalidationGeneration;
     const result = await this.inner.search(params);
-    this.cache.set(key, result);
+    if (generation === this.invalidationGeneration) {
+      this.cache.set(key, result);
+    }
     return result;
   }
 }

@@ -305,7 +305,114 @@ describe('PlayabilityVerifier', () => {
   });
 });
 
+describe('CachedUnifiedSearchService invalidation', () => {
+  it('does not cache an in-flight search result invalidated before its cache write', async () => {
+    const staleResult: UnifiedSearchResult = {
+      query: 'Same Song',
+      totalSongWorks: 0,
+      results: [],
+      errors: [],
+      meta: {
+        searchedAt: 1,
+        sourcesQueried: ['open_source'],
+        latencyMs: 10,
+      },
+    };
+    const freshResult: UnifiedSearchResult = {
+      ...staleResult,
+      meta: { ...staleResult.meta, searchedAt: 2, latencyMs: 20 },
+    };
+    let resolveSearch!: (result: UnifiedSearchResult) => void;
+    const inner = {
+      search: vi.fn()
+        .mockImplementationOnce(() => new Promise<UnifiedSearchResult>((resolve) => {
+          resolveSearch = resolve;
+        }))
+        .mockResolvedValueOnce(freshResult),
+    } as unknown as UnifiedSearchService;
+    const verifier = new PlayabilityVerifier();
+    const mountedSearch = new CachedUnifiedSearchService(
+      inner,
+      new LruTtlCache<UnifiedSearchResult>({ maxEntries: 10, defaultTtlMs: 60_000 }),
+      verifier,
+    );
+
+    const inFlight = mountedSearch.search({ query: 'Same Song' });
+    await vi.waitFor(() => expect(inner.search).toHaveBeenCalledOnce());
+    resolveSearch(staleResult);
+    verifier.markUnavailable('open_source', [{
+      type: 'stream',
+      payload: 'https://media.example/runtime-dead.mp3',
+    }]);
+    await expect(inFlight).resolves.toBe(staleResult);
+
+    await expect(mountedSearch.search({ query: 'Same Song' })).resolves.toBe(freshResult);
+    expect(inner.search).toHaveBeenCalledTimes(2);
+    mountedSearch.close();
+  });
+});
+
 describe('PlaybackOrchestrator playability feedback', () => {
+  it('records one playability outcome for each successful or failed playback preflight', async () => {
+    const sqlite = new Database(':memory:');
+    const db = drizzle(sqlite, { schema });
+    migrate(db, { migrationsFolder: './drizzle' });
+
+    try {
+      const registry = new SourceRegistry();
+      const getPlayOptions = vi.fn()
+        .mockResolvedValueOnce([{
+          type: 'stream' as const,
+          payload: 'https://media.example/playable.mp3',
+        }])
+        .mockResolvedValueOnce([{
+          type: 'stream' as const,
+          payload: 'https://media.example/unavailable.mp3',
+        }]);
+      registry.register({
+        id: 'open_source',
+        displayName: 'Playback preflight test adapter',
+        capabilities: { search: true, playOptions: true, health: true },
+        search: vi.fn().mockResolvedValue([]),
+        getPlayOptions,
+        health: vi.fn().mockResolvedValue({ status: 'healthy', checkedAt: 0 }),
+      });
+      const [entry] = new Normalizer(db).normalizeAll([{
+        sourceId: 'open_source',
+        hit: {
+          externalId: 'preflight-count',
+          title: 'Preflight Count',
+          artists: 'Artist',
+          durationSec: 180,
+        },
+      }]);
+      const fetchFn = vi.fn()
+        .mockResolvedValueOnce(validStreamResponse())
+        .mockResolvedValueOnce({
+          status: 503,
+          headers: new Headers(),
+          body: { cancel: vi.fn().mockResolvedValue(undefined) },
+        });
+      const verifier = new PlayabilityVerifier({
+        fetchFn: fetchFn as unknown as typeof fetch,
+        resolveHostname: resolvePublicHostname,
+      });
+      const orchestrator = new PlaybackOrchestrator(db, registry, verifier);
+
+      const successful = await orchestrator.resolvePlay({ sourceItemId: entry!.sourceItem.id });
+      const failed = await orchestrator.resolvePlay({ sourceItemId: entry!.sourceItem.id });
+
+      expect(successful.options).toHaveLength(1);
+      expect(failed).toMatchObject({
+        options: [],
+        errors: [{ code: 'http_status' }],
+      });
+      expect(registry.describe()[0]!.stats.playabilitySuccessRate).toBe(0.5);
+    } finally {
+      sqlite.close();
+    }
+  });
+
   it('invalidates cached searches after runtime fallback and preserves alternate sources', async () => {
     const sqlite = new Database(':memory:');
     const db = drizzle(sqlite, { schema });
