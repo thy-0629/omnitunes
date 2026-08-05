@@ -15,6 +15,7 @@ const embedOption: RankedPlayOption = {
     publisher: null,
     url: null,
     thumbnailUrl: null,
+    qualityMetadata: null,
   },
   option: { type: 'embed', payload: 'video-1' },
   playableOptionId: 'option-1',

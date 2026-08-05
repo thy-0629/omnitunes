@@ -32,8 +32,8 @@ const MOCK_RESULTS: SearchResultGroup[] = [
           album: '叶惠美',
         },
         sourceItems: [
-          { id: 'si-1', recordingId: 'rec-1', source: 'bilibili', externalId: 'BV1xx', publisher: '周杰伦音乐台', url: null, thumbnailUrl: null },
-          { id: 'si-2', recordingId: 'rec-1', source: 'local', externalId: 'file-001', publisher: '本地曲库', url: null, thumbnailUrl: null },
+          { id: 'si-1', recordingId: 'rec-1', source: 'bilibili', externalId: 'BV1xx', publisher: '周杰伦音乐台', url: null, thumbnailUrl: null, qualityMetadata: null },
+          { id: 'si-2', recordingId: 'rec-1', source: 'local', externalId: 'file-001', publisher: '本地曲库', url: null, thumbnailUrl: null, qualityMetadata: null },
         ],
       },
     ],
@@ -51,8 +51,8 @@ const MOCK_RESULTS: SearchResultGroup[] = [
           album: '黑·白·灰',
         },
         sourceItems: [
-          { id: 'si-3', recordingId: 'rec-2', source: 'bilibili', externalId: 'BV2yy', publisher: '陈奕迅频道', url: null, thumbnailUrl: null },
-          { id: 'si-4', recordingId: 'rec-2', source: 'open_source', externalId: 'arch-1', publisher: 'Internet Archive', url: null, thumbnailUrl: null },
+          { id: 'si-3', recordingId: 'rec-2', source: 'bilibili', externalId: 'BV2yy', publisher: '陈奕迅频道', url: null, thumbnailUrl: null, qualityMetadata: null },
+          { id: 'si-4', recordingId: 'rec-2', source: 'open_source', externalId: 'arch-1', publisher: 'Internet Archive', url: null, thumbnailUrl: null, qualityMetadata: null },
         ],
       },
     ],
@@ -70,7 +70,7 @@ const MOCK_RESULTS: SearchResultGroup[] = [
           album: '十一月的萧邦',
         },
         sourceItems: [
-          { id: 'si-5', recordingId: 'rec-3', source: 'bilibili', externalId: 'BV3zz', publisher: '杰威尔音乐', url: null, thumbnailUrl: null },
+          { id: 'si-5', recordingId: 'rec-3', source: 'bilibili', externalId: 'BV3zz', publisher: '杰威尔音乐', url: null, thumbnailUrl: null, qualityMetadata: null },
         ],
       },
     ],

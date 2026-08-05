@@ -1,7 +1,8 @@
-import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UnifiedSearchResult } from '@/lib/api/types';
 import { usePlayerStore } from '@/stores/player';
+import { useQueueStore } from '@/stores/queue';
 import { useSearchStore } from '@/stores/search';
 import { SearchPage } from './SearchPage';
 
@@ -50,6 +51,17 @@ const searchResult: UnifiedSearchResult = {
               publisher: '杰威尔音乐',
               url: null,
               thumbnailUrl: null,
+              qualityMetadata: { playCount: 1_000_000, isOfficialPublisher: true },
+            },
+            {
+              id: 'source-2',
+              recordingId: 'recording-1',
+              source: 'local',
+              externalId: 'hidden-external-id',
+              publisher: null,
+              url: null,
+              thumbnailUrl: null,
+              qualityMetadata: null,
             },
           ],
         },
@@ -61,6 +73,10 @@ const searchResult: UnifiedSearchResult = {
 };
 
 describe('SearchPage', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     usePlayerStore.getState().reset();
     useSearchStore.setState({
@@ -72,17 +88,63 @@ describe('SearchPage', () => {
     });
   });
 
-  it('shows song identity and source metadata in each playable source row', () => {
+  it('keeps every source row playable while showing grouped song and source metadata', () => {
+    const playSourceItem = vi.spyOn(usePlayerStore.getState(), 'playSourceItem').mockResolvedValue();
+    const addToQueue = vi.spyOn(useQueueStore.getState(), 'add').mockResolvedValue(false);
+    const addNext = vi.spyOn(useQueueStore.getState(), 'insertNext').mockResolvedValue(false);
+
     render(<SearchPage />);
 
-    const sourceRow = screen.getByRole('button', {
-      name: /晴天 · 周杰伦.*杰威尔音乐 · B站 · 4:29/,
-    });
+    const sourceRows = [
+      screen.getByRole('button', {
+        name: /晴天 · 周杰伦.*杰威尔音乐 · B站 · 4:29/,
+      }),
+      screen.getByRole('button', {
+        name: /晴天 · 周杰伦.*本地 · 4:29/,
+      }),
+    ];
 
+    expect(screen.getByRole('button', { name: '收藏' })).toBeVisible();
+    expect(screen.getByRole('button', { name: '播放' })).toBeVisible();
+
+    const sourceRow = sourceRows[0];
     expect(sourceRow).toBeVisible();
+    expect(within(sourceRow).getByText('B站')).toBeVisible();
     expect(within(sourceRow).getByText('杰威尔音乐 · B站 · 4:29')).toHaveClass(
       'text-xs',
       'text-muted-foreground',
     );
+
+    const publisherlessSourceRow = sourceRows[1];
+    expect(publisherlessSourceRow).toBeVisible();
+    expect(within(publisherlessSourceRow).getByText('本地')).toBeVisible();
+    expect(within(publisherlessSourceRow).getByText('本地 · 4:29')).toHaveClass(
+      'text-xs',
+      'text-muted-foreground',
+    );
+    expect(screen.queryByText('hidden-external-id')).not.toBeInTheDocument();
+
+    for (const [index, row] of sourceRows.entries()) {
+      const sourceControlRow = row.parentElement;
+      expect(sourceControlRow).not.toBeNull();
+      const queueButton = within(sourceControlRow!).getByRole('button', { name: '加入队列' });
+      const addNextButton = within(sourceControlRow!).getByRole('button', { name: '下一首播放' });
+
+      expect(queueButton).toBeVisible();
+      expect(addNextButton).toBeVisible();
+
+      fireEvent.click(row);
+      fireEvent.click(queueButton);
+      fireEvent.click(addNextButton);
+
+      const sourceItemId = `source-${index + 1}`;
+      expect(playSourceItem).toHaveBeenNthCalledWith(index + 1, sourceItemId, {
+        id: 'song-1',
+        title: '晴天',
+        artists: '周杰伦',
+      });
+      expect(addToQueue).toHaveBeenNthCalledWith(index + 1, searchResult.results[0]!.songWork, sourceItemId);
+      expect(addNext).toHaveBeenNthCalledWith(index + 1, searchResult.results[0]!.songWork, sourceItemId);
+    }
   });
 });

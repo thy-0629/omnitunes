@@ -26,6 +26,12 @@ export interface Recording {
   album: string | null;
 }
 
+export interface SourceQualityMetadata {
+  playCount?: number;
+  interactionCount?: number;
+  isOfficialPublisher?: boolean;
+}
+
 export interface SourceItem {
   id: string;
   recordingId: string;
@@ -34,11 +40,7 @@ export interface SourceItem {
   publisher: string | null;
   url: string | null;
   thumbnailUrl: string | null;
-  qualityMetadata?: {
-    playCount?: number;
-    interactionCount?: number;
-    isOfficialPublisher?: boolean;
-  } | null;
+  qualityMetadata: SourceQualityMetadata | null;
 }
 
 export interface SearchResultGroup {
