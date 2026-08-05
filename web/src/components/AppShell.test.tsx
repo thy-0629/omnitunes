@@ -38,6 +38,12 @@ describe('AppShell', () => {
     );
 
     expect(screen.getByTestId('app-shell')).toHaveAttribute('data-theme', 'fusion');
+    expect(screen.getByTestId('app-shell')).toHaveClass('h-dvh', 'min-h-0');
+    expect(screen.getByText('Search content').closest('main')).toHaveClass(
+      'min-h-0',
+      'overflow-y-auto',
+      'pb-36',
+    );
     expect(screen.getByRole('button', { name: /emil/i })).toBeInTheDocument();
     expect(screen.getByText('Search content')).toBeInTheDocument();
   });

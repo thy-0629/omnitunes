@@ -106,7 +106,7 @@ export function SearchPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="搜索歌曲、歌手、专辑…"
-              className="h-12 w-full rounded-2xl border border-input bg-secondary/60 pl-12 pr-10 text-[17px] text-foreground outline-none ring-primary placeholder:text-muted-foreground focus:bg-card focus:ring-2"
+              className="search-input h-12 w-full rounded-2xl border border-input bg-secondary/60 pl-12 pr-10 text-[17px] text-foreground outline-none ring-primary placeholder:text-muted-foreground focus:bg-card focus:ring-2"
             />
             {query && (
               <button

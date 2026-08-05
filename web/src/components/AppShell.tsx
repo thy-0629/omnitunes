@@ -34,7 +34,7 @@ export function AppShell() {
   }, []);
 
   return (
-    <div data-testid="app-shell" data-theme={theme} className="flex min-h-screen flex-col bg-background text-foreground">
+    <div data-testid="app-shell" data-theme={theme} className="flex h-dvh min-h-0 flex-col bg-background text-foreground">
       <header className="sticky top-0 z-40 px-4 py-3">
         <div className="apple-glass-strong mx-auto flex max-w-5xl items-center gap-3 rounded-full px-4 py-2">
           <Disc3 className="h-5 w-5 text-primary" />
@@ -65,7 +65,7 @@ export function AppShell() {
 
       <EmbedPlayer />
 
-      <main className="flex-1 overflow-y-auto px-4 pb-28">
+      <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-36">
         <Outlet />
       </main>
 

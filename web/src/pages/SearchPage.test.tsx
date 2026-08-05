@@ -104,6 +104,15 @@ describe('SearchPage', () => {
     ]);
   });
 
+  it('provides one accessible clear control while the search field has a value', () => {
+    useSearchStore.setState({ query: 'query' });
+
+    render(<SearchPage />);
+
+    expect(screen.getAllByRole('button', { name: '清空' })).toHaveLength(1);
+    expect(screen.getByRole('searchbox')).toHaveClass('search-input');
+  });
+
   it('keeps every source row playable while showing grouped song and source metadata', () => {
     const playSourceItem = vi.spyOn(usePlayerStore.getState(), 'playSourceItem').mockResolvedValue();
     const addToQueue = vi.spyOn(useQueueStore.getState(), 'add').mockResolvedValue(false);
