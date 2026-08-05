@@ -21,9 +21,21 @@ export interface SearchResultGroup {
   songWork: NormalizedEntry['songWork'];
   recordings: Array<{
     recording: NormalizedEntry['recording'];
-    sourceItems: NormalizedEntry['sourceItem'][];
+    sourceItems: SearchSourceItem[];
   }>;
 }
+
+/** Search-only preflight state. This is intentionally never persisted to SourceItem. */
+export interface SearchPlayability {
+  status: 'playable' | 'unavailable';
+  code?: string;
+  message?: string;
+  retryAt?: number;
+}
+
+export type SearchSourceItem = NormalizedEntry['sourceItem'] & {
+  playability: SearchPlayability;
+};
 
 export interface SearchError {
   source: SourceId;
@@ -85,7 +97,8 @@ export class UnifiedSearchService {
           query: params.query,
           limit: params.limit,
         });
-        const verified = await Promise.all(
+        const inputs = hits.map((hit) => ({ sourceId: adapter.id, hit } satisfies NormalizerInput));
+        const preflight = await Promise.all(
           hits.slice(0, 8).map(async (hit) => {
             try {
               const options = await adapter.getPlayOptions(hit.externalId);
@@ -96,9 +109,16 @@ export class UnifiedSearchService {
                 verification.options.length > 0 ? true : failure ?? false,
               );
               return verification.options.length > 0
-                ? { input: { sourceId: adapter.id, hit } satisfies NormalizerInput }
+                ? { externalId: hit.externalId, playability: { status: 'playable' } satisfies SearchPlayability }
                 : failure
                   ? {
+                      externalId: hit.externalId,
+                      playability: {
+                        status: 'unavailable',
+                        code: failure.code,
+                        message: failure.message,
+                        retryAt: failure.retryAt,
+                      } satisfies SearchPlayability,
                       error: {
                         source: adapter.id,
                         code: failure.code,
@@ -111,6 +131,13 @@ export class UnifiedSearchService {
               this.registry.recordPlayability(adapter.id, false);
               const err = error as { code?: string; message?: string; retryAt?: number } | undefined;
               return {
+                externalId: hit.externalId,
+                playability: {
+                  status: 'unavailable',
+                  code: err?.code ?? 'unknown',
+                  message: err?.message ?? String(error),
+                  ...(err?.retryAt !== undefined ? { retryAt: err.retryAt } : {}),
+                } satisfies SearchPlayability,
                 error: {
                   source: adapter.id,
                   code: err?.code ?? 'unknown',
@@ -121,18 +148,32 @@ export class UnifiedSearchService {
             }
           }),
         );
-        return verified;
+        return { inputs, preflight };
       }),
     );
 
     const errors: SearchError[] = [];
     const inputs: NormalizerInput[] = [];
+    const playabilityBySourceItem = new Map<string, SearchPlayability>();
+    const seenPreflightErrors = new Set<string>();
     settled.forEach((res, i) => {
       const id = sourcesQueried[i]!;
       if (res.status === 'fulfilled') {
-        for (const outcome of res.value) {
-          if (outcome.input) inputs.push(outcome.input);
-          if (outcome.error) errors.push(outcome.error);
+        inputs.push(...res.value.inputs);
+        for (const outcome of res.value.preflight) {
+          if (outcome.externalId && outcome.playability) {
+            playabilityBySourceItem.set(
+              sourceItemKey(id, outcome.externalId),
+              outcome.playability,
+            );
+          }
+          if (outcome.error) {
+            const key = preflightErrorKey(outcome.error);
+            if (!seenPreflightErrors.has(key)) {
+              seenPreflightErrors.add(key);
+              errors.push(outcome.error);
+            }
+          }
         }
       } else {
         const err = res.reason as { code?: string; message?: string; retryAt?: number } | undefined;
@@ -160,7 +201,11 @@ export class UnifiedSearchService {
         rec = { recording: e.recording, sourceItems: [] };
         group.recordings.push(rec);
       }
-      rec.sourceItems.push(e.sourceItem);
+      rec.sourceItems.push({
+        ...e.sourceItem,
+        playability: playabilityBySourceItem.get(sourceItemKey(e.sourceId, e.sourceItem.externalId))
+          ?? { status: 'unavailable' },
+      });
     }
 
     const query = params.query.trim();
@@ -189,6 +234,14 @@ export class UnifiedSearchService {
       },
     };
   }
+}
+
+function sourceItemKey(source: SourceId, externalId: string): string {
+  return JSON.stringify([source, externalId]);
+}
+
+function preflightErrorKey(error: SearchError): string {
+  return JSON.stringify([error.source, error.code, error.message, error.retryAt]);
 }
 
 export function scoreGroup(
@@ -225,6 +278,18 @@ export function scoreGroup(
     score += 300;
   }
 
+  if (!qualifiedQuery && artistClauseMatches(group.songWork.artists, query)) {
+    // A reliable artist field is meaningful for artist-only searches, but an
+    // exact title remains the primary signal.
+    score += 110;
+  }
+
+  if (!qualifiedQuery && groupHasPublisherMatch(group, query)) {
+    // Uploaders/publishers are useful secondary evidence, but less reliable
+    // than a normalized SongWork artist.
+    score += 30;
+  }
+
   // distinct sources bonus, capped so playlists don't dominate real songs
   const sources = new Set<SourceId>();
   for (const rec of group.recordings) {
@@ -257,6 +322,12 @@ function artistClauseMatches(artists: string, clause: string): boolean {
 
   const escapedClause = normalizedClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(?:^|[^\\p{L}\\p{N}])${escapedClause}(?=$|[^\\p{L}\\p{N}])`, 'u').test(normalizedArtists);
+}
+
+function groupHasPublisherMatch(group: SearchResultGroup, query: string): boolean {
+  return group.recordings.some((recording) => recording.sourceItems.some(
+    (sourceItem) => artistClauseMatches(sourceItem.publisher ?? '', query),
+  ));
 }
 
 function normalizeSearchText(value: string): string {

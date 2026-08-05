@@ -80,6 +80,20 @@ describe('scoreGroup', () => {
     );
   });
 
+  it('ranks a reliable artist match above an unrelated popular title hit for a pure artist query', () => {
+    const artistMatch = group('Starlight', 'Aurora', null);
+    const unrelatedTitleHit = group('Aurora review vlog', 'Unrelated Creator', {
+      playCount: 10_000_000_000,
+      interactionCount: 10_000_000_000,
+      isOfficialPublisher: true,
+    }, 2);
+    const query = 'Aurora';
+
+    expect(scoreGroup(artistMatch, query, canonicalTitle(query))).toBeGreaterThan(
+      scoreGroup(unrelatedTitleHit, query, canonicalTitle(query)),
+    );
+  });
+
   it('prioritizes explicit title and artist clauses without substring artist matches', () => {
     const splitMetadataMatch = group('Song', 'Artist', null);
     const wholeTitleCandidate = group('Song - Artist', 'The Songwriter', {
@@ -124,7 +138,7 @@ describe('UnifiedSearchService playability gate', () => {
     vi.useRealTimers();
   });
 
-  it('does not normalize a hit whose only stream option fails preflight', async () => {
+  it('normalizes a hit whose only stream option fails preflight', async () => {
     const adapter: SourceAdapter = {
       id: 'open_source',
       displayName: 'Open source test adapter',
@@ -153,7 +167,9 @@ describe('UnifiedSearchService playability gate', () => {
     const result = await service.search({ query: 'Silent Result' });
 
     expect(result.results).toEqual([]);
-    expect(normalizeAll).toHaveBeenCalledWith([]);
+    expect(normalizeAll).toHaveBeenCalledWith([
+      { sourceId: 'open_source', hit: expect.objectContaining({ externalId: 'broken-stream' }) },
+    ]);
     expect(result.errors).toEqual([
       expect.objectContaining({ source: 'open_source', code: 'http_status' }),
     ]);
@@ -241,7 +257,7 @@ describe('UnifiedSearchService playability gate', () => {
     const result = await service.search({ query: 'Result' });
 
     expect(getPlayOptions).toHaveBeenCalledTimes(8);
-    expect(normalizeAll.mock.calls[0]![0]).toHaveLength(7);
+    expect(normalizeAll.mock.calls[0]![0]).toHaveLength(10);
     expect(result.errors).toEqual([
       { source: 'bilibili', code: 'network', message: 'option lookup failed' },
     ]);

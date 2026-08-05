@@ -137,6 +137,23 @@ describe('BilibiliAdapter', () => {
     },
   );
 
+  it('keeps results matched by normalized title, parsed artist, or uploader', async () => {
+    const adapter = makeAdapter(makeFetchMock({
+      code: 0,
+      data: {
+        result: [
+          { bvid: 'BV1title', title: 'Aurora Live', author: 'Uploader', duration: '4:00' },
+          { bvid: 'BV1artist', title: 'Aurora - Other Track', author: 'Uploader', duration: '4:00' },
+          { bvid: 'BV1uploader', title: 'Another Track', author: 'Aurora Channel', duration: '4:00' },
+        ],
+      },
+    }));
+
+    const hits = await adapter.search({ query: 'Aurora', limit: 10 });
+
+    expect(hits.map((hit) => hit.externalId)).toEqual(['BV1title', 'BV1artist', 'BV1uploader']);
+  });
+
   it('keeps simple-query filtering and music-duration limits', async () => {
     const adapter = makeAdapter(makeFetchMock({
       code: 0,

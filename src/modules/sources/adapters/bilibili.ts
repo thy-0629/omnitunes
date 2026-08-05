@@ -74,18 +74,21 @@ export class BilibiliAdapter implements SourceAdapter {
     const json = await this.searchOnce(query, limit, false);
     const hits = parseSearchResults(json);
 
-    const titleQuery = parseTitleArtistQuery(query)?.title ?? query;
-    const queryLower = titleQuery.toLowerCase();
+    const titleArtistQuery = parseTitleArtistQuery(query);
+    const titleQuery = titleArtistQuery?.title ?? query;
+    const artistQuery = titleArtistQuery?.artist ?? query;
     return hits
-      .filter((hit) => {
-        const duration = hit.durationSec ?? 0;
-        if (duration < 45 || duration > 15 * 60) return false;
-        if (queryLower.length < 2) return true;
-        return hit.title.toLowerCase().includes(queryLower);
-      })
       .map((hit) => {
         const { title, artists } = extractMusicMeta(hit.title);
         return { ...hit, title, artists };
+      })
+      .filter((hit) => {
+        const duration = hit.durationSec ?? 0;
+        if (duration < 45 || duration > 15 * 60) return false;
+        if (normalizeSearchTerm(query).length < 2) return true;
+        return normalizedIncludes(hit.title, titleQuery)
+          || normalizedIncludes(hit.artists, artistQuery)
+          || normalizedIncludes(hit.publisher ?? '', query);
       });
   }
 
@@ -272,6 +275,15 @@ function stripTrailingSuffixes(s: string): string {
     .replace(/\s*(mv|pv|live|cover|instrumental|remix|acoustic|version|official|hd|4k|1080p|2160p)\s*\d*\s*$/i, '')
     .replace(/[（(〔【[{「].*?[）)〕】}\]」]\s*$/, '')
     .trim();
+}
+
+function normalizedIncludes(value: string, query: string): boolean {
+  const normalizedQuery = normalizeSearchTerm(query);
+  return normalizedQuery.length > 0 && normalizeSearchTerm(value).includes(normalizedQuery);
+}
+
+function normalizeSearchTerm(value: string): string {
+  return value.normalize('NFKC').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 }
 
 // -----------------------------------------------------------------------------
